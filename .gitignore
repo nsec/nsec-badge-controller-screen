@@ -1,0 +1,16 @@
+xcuserdata
+# python
+__pycache__/
+*.py[cod]
+
+# OS X temp files
+*.DS_Store
+
+# Xcode project bundle file
+*.xcodeproj
+
+# Sublime Text project file
+*.sublime-*
+
+.vscode/
+.pio/
