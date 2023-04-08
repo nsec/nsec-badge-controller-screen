@@ -28,6 +28,22 @@ class Buzzer
         Beep,
         Buzz, // same as beep but configurable frequency and length via buzz(freq, length);
 
+        // From https://github.com/GypsyRobot/CuteBuzzerSounds/blob/master/src/CuteBuzzerSounds.cpp
+        Connection,
+        Disconnection,
+        ButtonPushed,
+        Mode1,
+        Mode2,
+        Mode3,
+        Surprise,
+        OhOoh,
+        Cuddly,
+        Sleeping,
+        Happy,
+        SuperHappy,
+        HappyShort,
+        Sad,
+
         ListCount,
     };
 
@@ -40,26 +56,10 @@ class Buzzer
     static TaskHandle_t _taskHandle;
 
     void _buzz(long frequency, long length);
+    void _buzz(long frequency, long length, long silenceLength);
     long _buzzFrequency;
     long _buzzLength;
-
-    ledc_timer_config_t _ledc_timer = {
-        .speed_mode = LEDC_HIGH_SPEED_MODE,
-        .duty_resolution = LEDC_TIMER_13_BIT,
-        .timer_num = LEDC_TIMER_1,
-        .freq_hz = 100 * 2, // LEDC uses half the frequency for square waves
-        .clk_cfg = LEDC_AUTO_CLK,
-    };
-    ledc_channel_config_t _ledc_channel = {
-        .gpio_num = BUZZER_GPIO_NUM,
-        .speed_mode = LEDC_HIGH_SPEED_MODE,
-        .channel = LEDC_CHANNEL_3,
-        .intr_type = LEDC_INTR_DISABLE,
-        .timer_sel = LEDC_TIMER_1,
-        .duty = (1 << LEDC_TIMER_13_BIT) / 2, // 50% duty cycle
-        .hpoint = 0,
-        .flags = 0,
-    };
+    void _bendTones(float initFrequency, float finalFrequency, float prop, long noteDuration, int silentDuration);
 
   public:
     Buzzer(Buzzer const &) = delete;

@@ -46,6 +46,7 @@ extern "C" void app_main(void) {
         return;
     }
     fflush(stdout);
+
 	NeoPixel::getInstance().init();
     NeoPixel::getInstance().stop();
 	NeoPixel::getInstance().setColor(CRGB::Red);
@@ -54,7 +55,7 @@ extern "C" void app_main(void) {
     NeoPixel::getInstance().start();
 
     Buzzer::getInstance().init();
-    Buzzer::getInstance().buzz(880, 1000);
+    Buzzer::getInstance().play(Buzzer::Sounds::Connection);
 
     xTaskCreate(console_task, "console task", 4096, NULL, 3, NULL);
 }
