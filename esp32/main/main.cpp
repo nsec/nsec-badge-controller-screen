@@ -9,6 +9,7 @@
 #include "esp_spiffs.h"
 #include "console.h"
 #include "neopixel.h"
+#include "buzzer.h"
 
 #define MOUNT_PATH "/spiffs"
 
@@ -51,5 +52,9 @@ extern "C" void app_main(void) {
     NeoPixel::getInstance().setBrightness(255);
     NeoPixel::getInstance().setMode(FX_MODE_RANDOM_COLOR);
     NeoPixel::getInstance().start();
-	xTaskCreate(console_task, "console task", 4096, NULL, 3, NULL);
+
+    Buzzer::getInstance().init();
+    Buzzer::getInstance().buzz(880, 1000);
+
+    xTaskCreate(console_task, "console task", 4096, NULL, 3, NULL);
 }

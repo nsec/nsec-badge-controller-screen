@@ -6,6 +6,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include <stdint.h>
+#include <driver/gpio.h>
 
 #include "fastled_analog_controller.h"
 

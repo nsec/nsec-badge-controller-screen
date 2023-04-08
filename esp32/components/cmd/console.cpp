@@ -20,9 +20,10 @@
 #include "cmd_system.h"
 #include "cmd_nvs.h"
 #include "console.h"
+#include "buzzer.h"
 
 static const char* TAG = "console";
-#define PROMPT_STR "nsec" 
+#define PROMPT_STR "nsec"
 
 static void initialize_console(void)
 {
@@ -58,8 +59,8 @@ static void initialize_console(void)
 
     /* initialize the console */
     esp_console_config_t console_config = {
-            .max_cmdline_args = 8,
             .max_cmdline_length = 256,
+            .max_cmdline_args = 8,
 #if config_log_colors
             .hint_color = atoi(log_color_cyan)
 #endif
@@ -83,7 +84,7 @@ static void initialize_console(void)
     linenoiseSetMaxLineLen(console_config.max_cmdline_length);
 
     /* don't return empty lines */
-    linenoiseAllowEmpty(false);
+    linenoiseAllowEmpty(true);
 
     /* load command history from filesystem */
     // linenoisehistoryload(history_path);
@@ -144,6 +145,7 @@ void console_task(void *args)
         int ret;
         esp_err_t err = esp_console_run(line, &ret);
         if (err == ESP_ERR_NOT_FOUND) {
+            buzzer_beep();
             printf("Unrecognized command\n");
         } else if (err == ESP_ERR_INVALID_ARG) {
             // command was empty
