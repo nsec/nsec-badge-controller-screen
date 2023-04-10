@@ -10,6 +10,7 @@
 #include "console.h"
 #include "neopixel.h"
 #include "buzzer.h"
+#include "display.h"
 
 #define MOUNT_PATH "/spiffs"
 
@@ -56,6 +57,9 @@ extern "C" void app_main(void) {
 
     Buzzer::getInstance().init();
     Buzzer::getInstance().play(Buzzer::Sounds::Connection);
+
+    Display::getInstance().init();
+    Display::getInstance().demo();
 
     xTaskCreate(console_task, "console task", 4096, NULL, 3, NULL);
 }
