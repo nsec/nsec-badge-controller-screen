@@ -108,8 +108,6 @@ void Display::taskHandler()
 	lv_img_set_src(cursor_obj, &mouse_cursor_icon);             //Set the image source
 	lv_indev_set_cursor(mouse_indev, cursor_obj);               //Connect the image  object to the driver
 */
-	lv_demo_widgets();
-
     while(true) {
 		if (xSemaphoreTake(xGuiSemaphore, (TickType_t)10) == pdTRUE) {
             lv_task_handler();
@@ -124,4 +122,9 @@ void Display::taskHandler()
 
 void Display::demo()
 {
+    vTaskDelay(5000 / portTICK_PERIOD_MS);
+    if (xSemaphoreTake(xGuiSemaphore, (TickType_t)10) == pdTRUE) {
+	    lv_demo_widgets();
+        xSemaphoreGive(xGuiSemaphore);
+    }
 }
