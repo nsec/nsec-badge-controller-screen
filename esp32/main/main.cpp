@@ -11,6 +11,7 @@
 #include "neopixel.h"
 #include "buzzer.h"
 #include "display.h"
+#include "disk.h"
 
 #define MOUNT_PATH "/spiffs"
 
@@ -56,10 +57,12 @@ extern "C" void app_main(void) {
     NeoPixel::getInstance().start();
 
     Buzzer::getInstance().init();
-    Buzzer::getInstance().play(Buzzer::Sounds::Connection);
+    Buzzer::getInstance().play(Buzzer::Sounds::Mode1);
 
     Display::getInstance().init();
     Display::getInstance().demo();
+
+    Disk::getInstance().init();
 
     xTaskCreate(console_task, "console task", 4096, NULL, 3, NULL);
 }

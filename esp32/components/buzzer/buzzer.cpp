@@ -16,7 +16,6 @@ void Buzzer::init()
 void Buzzer::play(Sounds sound)
 {
     if (_sound != Sounds::None) {
-        ESP_LOGE(TAG, "Not playing %u, there is already a sound playing", sound);
         return;
     }
     if (sound >= Sounds::ListCount || sound < 0) {
