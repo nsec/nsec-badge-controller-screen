@@ -10,7 +10,7 @@ TaskHandle_t Buzzer::_taskHandle = NULL;
 
 void Buzzer::init()
 {
-    xTaskCreate((TaskFunction_t)&(Buzzer::task), "buzzer", 4096, this, 5, &Buzzer::_taskHandle);
+    xTaskCreate((TaskFunction_t)&(Buzzer::task), "buzzer", 1024, this, 5, &Buzzer::_taskHandle);
 }
 
 void Buzzer::play(Sounds sound)
