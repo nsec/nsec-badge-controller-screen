@@ -35,9 +35,45 @@ TaskHandle_t Display::_taskHandle = NULL;
 //you should lock on the very same semaphore!
 SemaphoreHandle_t xGuiSemaphore;
 
+static lv_disp_buf_t _lv_display_buffer;
+
+static void _initialize_lv_buffers()
+{
+    static void *buf1 = NULL;
+    static void *buf2 = NULL;
+    uint32_t size_in_px = DISP_BUF_SIZE;
+
+    lv_init();
+    lvgl_driver_init();
+
+    buf1 = heap_caps_malloc(size_in_px * sizeof(lv_color_t), MALLOC_CAP_8BIT);
+    if (buf1 == NULL) {
+        ESP_LOGE(TAG, "Failed to allocate buf1 %lu", size_in_px);
+        return;
+    }
+    memset(buf1, 0, size_in_px);
+
+    buf2 = heap_caps_malloc(size_in_px * sizeof(lv_color_t), MALLOC_CAP_8BIT);
+    if (buf2 == NULL) {
+        ESP_LOGE(TAG, "Failed to allocate buf2 %lu", size_in_px);
+        return;
+    }
+    memset(buf2, 0, size_in_px);
+
+    lv_disp_buf_init(&_lv_display_buffer, buf1, buf2, size_in_px);
+
+}
+
 void Display::init()
 {
+    xGuiSemaphore = xSemaphoreCreateMutex();
+
+    _initialize_lv_buffers();
+
     xTaskCreatePinnedToCore((TaskFunction_t)&(Display::task), "display", 4096, this, 5, &Display::_taskHandle, 1);
+
+    // wait for task to start running
+    vTaskDelay(500 / portTICK_PERIOD_MS);
 }
 
 static void lv_tick_task(void *arg) {
@@ -60,38 +96,31 @@ static void touch_feedback(struct _lv_indev_drv_t *, lv_event_t evt)
 
 void Display::taskHandler()
 {
-    static lv_color_t buf1[DISP_BUF_SIZE];
-    static lv_color_t buf2[DISP_BUF_SIZE];
-    static lv_disp_buf_t disp_buf;
-    uint32_t size_in_px = DISP_BUF_SIZE;
+	if (xSemaphoreTake(xGuiSemaphore, (TickType_t)10) == pdTRUE) {
+        lv_disp_drv_t disp_drv;
+        lv_disp_drv_init(&disp_drv);
+        disp_drv.flush_cb = disp_driver_flush;
+        disp_drv.buffer = &_lv_display_buffer;
+        lv_disp_drv_register(&disp_drv);
 
-    xGuiSemaphore = xSemaphoreCreateMutex();
-    lv_init();
-    lvgl_driver_init();
+        lv_indev_drv_t indev_drv;
+        lv_indev_drv_init(&indev_drv);
+        indev_drv.read_cb = touch_driver_read;
+        indev_drv.feedback_cb = touch_feedback;
+        indev_drv.type = LV_INDEV_TYPE_POINTER;
+        lv_indev_drv_register(&indev_drv);
 
-    lv_disp_buf_init(&disp_buf, buf1, buf2, size_in_px);
+        const esp_timer_create_args_t periodic_timer_args = {
+            .callback = &lv_tick_task,
+            .arg = NULL,
+            .name = "periodic_gui",
+        };
+        esp_timer_handle_t periodic_timer;
+        ESP_ERROR_CHECK(esp_timer_create(&periodic_timer_args, &periodic_timer));
+        ESP_ERROR_CHECK(esp_timer_start_periodic(periodic_timer, LV_TICK_PERIOD_MS * 1000));
 
-    lv_disp_drv_t disp_drv;
-    lv_disp_drv_init(&disp_drv);
-    disp_drv.flush_cb = disp_driver_flush;
-    disp_drv.buffer = &disp_buf;
-    lv_disp_drv_register(&disp_drv);
-
-    lv_indev_drv_t indev_drv;
-    lv_indev_drv_init(&indev_drv);
-    indev_drv.read_cb = touch_driver_read;
-    indev_drv.feedback_cb = touch_feedback;
-    indev_drv.type = LV_INDEV_TYPE_POINTER;
-    lv_indev_drv_register(&indev_drv);
-
-    const esp_timer_create_args_t periodic_timer_args = {
-        .callback = &lv_tick_task,
-        .arg = NULL,
-        .name = "periodic_gui",
-    };
-    esp_timer_handle_t periodic_timer;
-    ESP_ERROR_CHECK(esp_timer_create(&periodic_timer_args, &periodic_timer));
-    ESP_ERROR_CHECK(esp_timer_start_periodic(periodic_timer, LV_TICK_PERIOD_MS * 1000));
+        xSemaphoreGive(xGuiSemaphore);
+    }
 
     while(true) {
 		if (xSemaphoreTake(xGuiSemaphore, (TickType_t)10) == pdTRUE) {
@@ -107,7 +136,6 @@ void Display::taskHandler()
 
 void Display::demo()
 {
-    vTaskDelay(5000 / portTICK_PERIOD_MS);
     if (xSemaphoreTake(xGuiSemaphore, (TickType_t)10) == pdTRUE) {
 	    lv_demo_widgets();
         xSemaphoreGive(xGuiSemaphore);
