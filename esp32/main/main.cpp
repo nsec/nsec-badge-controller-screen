@@ -12,6 +12,7 @@
 #include "buzzer.h"
 #include "display.h"
 #include "disk.h"
+#include "badge/mesh/main.h"
 
 #define MOUNT_PATH "/spiffs"
 
@@ -64,5 +65,7 @@ extern "C" void app_main(void) {
 
     Disk::getInstance().init();
 
-    xTaskCreate(console_task, "console task", 4096, NULL, 3, NULL);
+    BadgeMesh::getInstance().init();
+
+    xTaskCreate(console_task, "console task", 2048, NULL, 3, NULL);
 }
