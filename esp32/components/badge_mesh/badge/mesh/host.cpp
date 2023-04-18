@@ -4,6 +4,12 @@
 #include <esp_log.h>
 #include <esp_err.h>
 
+#ifdef CONFIG_BT_BLUEDROID_ENABLED
+#include "esp_bt.h"
+#include "esp_bt_main.h"
+#include "esp_bt_device.h"
+#endif
+
 #ifdef CONFIG_BT_NIMBLE_ENABLED
 #include "nimble/nimble_port.h"
 #include "nimble/nimble_port_freertos.h"
@@ -16,11 +22,50 @@
 
 static const char *TAG = "badge/mesh";
 
-static SemaphoreHandle_t mesh_sem;
-
-uint8_t _device_address_type;
 uint8_t _device_address[6] = {0};
 bool mesh_host_initialized = false;
+
+#ifdef CONFIG_BT_BLUEDROID_ENABLED
+
+esp_err_t mesh_host_initialize(void)
+{
+    esp_err_t ret;
+
+    ESP_ERROR_CHECK(esp_bt_controller_mem_release(ESP_BT_MODE_CLASSIC_BT));
+
+    esp_bt_controller_config_t bt_cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
+    ret = esp_bt_controller_init(&bt_cfg);
+    if (ret) {
+        ESP_LOGE(TAG, "%s initialize controller failed", __func__);
+        return ret;
+    }
+
+    ret = esp_bt_controller_enable(ESP_BT_MODE_BLE);
+    if (ret) {
+        ESP_LOGE(TAG, "%s enable controller failed", __func__);
+        return ret;
+    }
+    ret = esp_bluedroid_init();
+    if (ret) {
+        ESP_LOGE(TAG, "%s init bluetooth failed", __func__);
+        return ret;
+    }
+    ret = esp_bluedroid_enable();
+    if (ret) {
+        ESP_LOGE(TAG, "%s enable bluetooth failed", __func__);
+        return ret;
+    }
+
+    memcpy(&_device_address, esp_bt_dev_get_address(), ESP_BD_ADDR_LEN);
+    mesh_host_initialized = true;
+
+    return ret;
+}
+
+#else /* CONFIG_BT_BLUEDROID_ENABLED */
+
+static SemaphoreHandle_t mesh_sem;
+uint8_t _device_address_type;
 
 static void mesh_on_reset(int reason)
 {
@@ -84,3 +129,5 @@ esp_err_t mesh_host_initialize(void)
 
     return ESP_OK;
 }
+
+#endif /* CONFIG_BT_BLUEDROID_ENABLED */

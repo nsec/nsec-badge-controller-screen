@@ -29,12 +29,12 @@ esp_err_t send_ping(uint64_t idx)
 
     memcpy(&ping.src_mac_addr, &_device_address, sizeof(_device_address));
 
-    ESP_LOGI(TAG, "Sending ping from node=0x%02x idx=%llu", ping.src_node_addr, ping.idx);
+    ESP_LOGV(TAG, "Sending ping from node=0x%02x idx=%llu", ping.src_node_addr, ping.idx);
 
     err = esp_ble_mesh_client_model_send_msg(cli_vnd_model, &ctx, OP_VND_PING,
             sizeof(ping), (uint8_t *)&ping, 10, true, ROLE_NODE);
 	if (err != ESP_OK) {
-        ESP_LOGI(TAG, "%s: Send ping failed", __func__);
+        ESP_LOGE(TAG, "%s: Send ping failed", __func__);
         return err;
     }
 
@@ -45,12 +45,12 @@ esp_err_t ping_received(esp_ble_mesh_model_t *model, esp_ble_mesh_msg_ctx_t *ctx
 {
     ping_data_t *ping = (ping_data_t *)buf->data;
 	if (ctx->addr == model->element->element_addr) {
-        ESP_LOGV(TAG, "Ignoring message from self");
+        ESP_LOGV(TAG, "%s: Ignoring message from self", __func__);
 		return ESP_OK;
 	}
 
-    ESP_LOGI(TAG, "Received ping from node=0x%02x mac=" MAC_STR_FMT " idx=%llu",
-        ping->src_node_addr, MAC_BYTES(ping->src_mac_addr), ping->idx);
+    ESP_LOGV(TAG, "Received ping from node=0x%02x rssi=%d mac=" MAC_STR_FMT " idx=%llu",
+        ping->src_node_addr, ctx->recv_rssi, MAC_BYTES(ping->src_mac_addr), ping->idx);
 
     send_pong(ping->src_node_addr, ping->idx);
 

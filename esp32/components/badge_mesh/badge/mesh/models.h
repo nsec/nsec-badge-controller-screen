@@ -4,6 +4,10 @@
 
 #include "esp_ble_mesh_defs.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define MODEL_SRV_ID            0x0000
 #define MODEL_CLI_ID            0x0001
 
@@ -39,3 +43,7 @@
 }
 
 void mesh_custom_model_cb(esp_ble_mesh_model_cb_event_t event, esp_ble_mesh_model_cb_param_t *param);
+
+#ifdef __cplusplus
+}
+#endif

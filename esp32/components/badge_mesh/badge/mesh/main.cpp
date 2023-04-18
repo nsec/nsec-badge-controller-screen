@@ -54,7 +54,7 @@ void BadgeMesh::taskHandler()
 	}
 
     while(true) {
-        send_ping(_current_ping_idx++);
+        // send_ping(_current_ping_idx++);
 
         vTaskDelay(30000 / portTICK_PERIOD_MS);
     }

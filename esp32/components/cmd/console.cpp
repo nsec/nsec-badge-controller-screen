@@ -21,6 +21,7 @@
 #include "cmd_nvs.h"
 #include "console.h"
 #include "buzzer.h"
+#include "badge/mesh/cmd/admin.h"
 
 static const char* TAG = "console";
 #define PROMPT_STR "nsec"
@@ -98,6 +99,10 @@ void console_task(void *args)
     esp_console_register_help_command();
     register_system();
     // register_nvs();
+
+#if CONFIG_BADGE_MESH_ADMIN_COMMANDS
+    register_mesh_admin_commands();
+#endif
 
     /* prompt to be printed before each line.
      * this can be customized, made dynamic, etc.

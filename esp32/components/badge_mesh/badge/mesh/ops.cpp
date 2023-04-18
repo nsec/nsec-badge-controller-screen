@@ -6,11 +6,12 @@
 #include "badge/mesh/ops.h"
 #include "badge/mesh/ops/ping.h"
 #include "badge/mesh/ops/pong.h"
+#include "badge/mesh/ops/set_name.h"
 
 static const char *TAG = "badge/mesh";
 
 /*
-    List all client operations, i.e. all message types that are sent unsolicited from a node to another node.
+    List all client messages, i.e. all message types that are sent in response to a prior client message.
 
     Use:
         ESP_BLE_MESH_MODEL_OP(message_type, min_length),
@@ -24,7 +25,7 @@ esp_ble_mesh_model_op_t vnd_cli_ops[] = {
 };
 
 /*
-    List all server operations, i.e. all message types that are sent in response to a prior client message.
+    List all server operations, i.e. all message types that are sent unsolicited from a node to another node.
 
     Use:
         ESP_BLE_MESH_MODEL_OP(message_type, min_length),
@@ -34,6 +35,7 @@ esp_ble_mesh_model_op_t vnd_cli_ops[] = {
 */
 esp_ble_mesh_model_op_t vnd_srv_ops[] = {
     ESP_BLE_MESH_MODEL_OP(OP_VND_PING, sizeof(ping_data_t)),
+    ESP_BLE_MESH_MODEL_OP(OP_VND_SET_NAME, sizeof(set_name_data_t)),
 	ESP_BLE_MESH_MODEL_OP_END,
 };
 
@@ -48,6 +50,7 @@ esp_ble_mesh_model_op_t vnd_srv_ops[] = {
 */
 esp_ble_mesh_client_op_pair_t op_pair[] = {
     { OP_VND_PING,          OP_VND_PONG      },
+    { OP_VND_SET_NAME,      NULL             },
 };
 
 esp_ble_mesh_client_t mesh_client = {
@@ -56,11 +59,12 @@ esp_ble_mesh_client_t mesh_client = {
 };
 
 /*
-    Define callback methods for each possible OP_VND_* message types
+    Define callback methods for each possible OP_VND_* message types.
 */
 mesh_callback_t mesh_callbacks[] = {
     { .op = OP_VND_PING, .cb = ping_received },
     { .op = OP_VND_PONG, .cb = pong_received },
+    { .op = OP_VND_SET_NAME, .cb = set_name_received },
 
     { .op = 0, .cb = 0 }, // keep last
 };

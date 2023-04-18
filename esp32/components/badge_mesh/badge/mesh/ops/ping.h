@@ -7,7 +7,11 @@
 
 #include "badge/mesh/config.h"
 
-#define OP_PING                 0xbb /* must be unique */
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#define OP_PING                 0x00 /* must be unique */
 #define OP_VND_PING             ESP_BLE_MESH_MODEL_OP_3(OP_PING, NSEC_COMPANY_ID)
 
 #define MAC_STR_FMT "%01x:%01x:%01x:%01x:%01x:%01x"
@@ -23,3 +27,7 @@ typedef struct ping_data {
 
 esp_err_t send_ping(uint64_t idx);
 esp_err_t ping_received(esp_ble_mesh_model_t *model, esp_ble_mesh_msg_ctx_t *ctx, struct net_buf_simple *buf);
+
+#ifdef __cplusplus
+}
+#endif

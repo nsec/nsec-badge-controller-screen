@@ -5,6 +5,10 @@
 #include "esp_ble_mesh_defs.h"
 #include "mesh_buf.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 extern esp_ble_mesh_model_op_t vnd_cli_ops[];
 extern esp_ble_mesh_model_op_t vnd_srv_ops[];
 extern esp_ble_mesh_client_op_pair_t op_pair[];
@@ -22,3 +26,7 @@ typedef struct mesh_callback {
 } mesh_callback_t;
 
 extern mesh_callback_t mesh_callbacks[];
+
+#ifdef __cplusplus
+}
+#endif

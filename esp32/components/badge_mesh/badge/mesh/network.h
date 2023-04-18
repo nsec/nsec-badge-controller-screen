@@ -2,6 +2,12 @@
 
 #include <esp_system.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#define BADGE_NAME_LEN 32
+
 typedef struct badge_network_info {
     uint8_t  net_key[16];
     uint16_t net_idx;
@@ -12,6 +18,7 @@ typedef struct badge_network_info {
     uint8_t  app_key[16];
     uint16_t app_idx;
     uint16_t group_addr;
+    char name[BADGE_NAME_LEN];
 } badge_network_info_t;
 
 /*
@@ -23,3 +30,7 @@ int mesh_is_provisioned();
     Self-provision the device to automatically enter a network.
 */
 int mesh_device_auto_enter_network(badge_network_info_t *info);
+
+#ifdef __cplusplus
+}
+#endif

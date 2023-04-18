@@ -1,6 +1,8 @@
 #include <esp_system.h>
 #include <esp_log.h>
 #include <esp_random.h>
+#include "nvs_flash.h"
+#include "nvs.h"
 
 #include "esp_ble_mesh_defs.h"
 #include "esp_ble_mesh_common_api.h"
@@ -15,20 +17,24 @@
 #include "badge/mesh/models.h"
 #include "badge/mesh/network.h"
 #include "badge/mesh/ops.h"
+#include "badge/mesh/host.h"
 
 static const char *TAG = "badge/mesh";
 
+#define MESH_NVS_NAMESPACE "badge-mesh"
+#define MESH_NVS_NAME_KEY "node-name"
+
 badge_network_info_t badge_network_info = {
     .net_key = {
-        0xcc, 0xcc, 0xcc, 0xcc, 0xcc, 0xcc, 0xcc, 0xcc,
-        0xcc, 0xcc, 0xcc, 0xcc, 0xcc, 0xcc, 0xcc, 0xcc,
+        0x5a, 0xfd, 0x31, 0x9a, 0x12, 0x4c, 0x4a, 0xa0,
+        0x4e, 0xb3, 0x91, 0x7e, 0xa7, 0x6a, 0x81, 0xc4,
     },
     .net_idx = NETWORK_NET_KEY_IDX,
     .flags = NETWORK_FLAGS,
     .iv_index = 0,
     .app_key = {
-        0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa,
-        0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa,
+        0xa1, 0xa2, 0xa3, 0xa4, 0xa5, 0xa6, 0xa7, 0xa8,
+        0x1b, 0x2b, 0x3b, 0x4b, 0x5b, 0x6b, 0x7b, 0x8b,
     },
     .app_idx = NETWORK_APP_KEY_IDX,
     .group_addr = NETWORK_GROUP_ADDR,
@@ -55,7 +61,7 @@ esp_ble_mesh_model_t root_models[] = {
 };
 
 /*
-    Define all client and vendor models.
+    Define all client and server vendor models.
 */
 esp_ble_mesh_model_t vnd_models[] = {
     __ESP_BLE_MESH_VENDOR_MODEL(NSEC_COMPANY_ID, MODEL_CLI_ID, vnd_cli_ops, NULL, &mesh_client),
@@ -96,9 +102,111 @@ static esp_ble_mesh_comp_t comp = {
 	.elements = elements,
 };
 
+static esp_err_t mesh_save_name(char *name)
+{
+    nvs_handle_t handle;
+    esp_err_t err;
+
+    // Initialize NVS
+    err = nvs_flash_init();
+    if (err != ESP_OK) {
+		ESP_LOGE(TAG, "%s: failed to init nvs (err %d)", __func__, err);
+        return err;
+    }
+
+    // Open NVS namespace
+    err = nvs_open(MESH_NVS_NAMESPACE, NVS_READWRITE, &handle);
+    if (err != ESP_OK) {
+		ESP_LOGE(TAG, "%s: failed to open nvs (err %d)", __func__, err);
+        return err;
+    }
+
+    // Write data to NVS
+    err = nvs_set_str(handle, MESH_NVS_NAME_KEY, name);
+    if (err != ESP_OK) {
+		ESP_LOGE(TAG, "%s: failed to set str (err %d)", __func__, err);
+        return err;
+    }
+
+    // Commit changes to NVS
+    err = nvs_commit(handle);
+    if (err != ESP_OK) {
+		ESP_LOGE(TAG, "%s: failed to commit (err %d)", __func__, err);
+        return err;
+    }
+
+    // Close NVS namespace
+    nvs_close(handle);
+
+    return ESP_OK;
+}
+
+/*
+    Write stored node name into 'name'
+
+    Before calling, 'name' must be initialized and be at least '*length' bytes long.
+    The actual size of 'name' is written in '*length' as output.
+*/
+static esp_err_t load_name(char *name, size_t *length)
+{
+    nvs_handle_t handle;
+    esp_err_t err;
+
+    // Initialize NVS
+    err = nvs_flash_init();
+    if (err != ESP_OK) {
+		ESP_LOGE(TAG, "%s: failed to init nvs (err %04x)", __func__, err);
+        return err;
+    }
+
+    err = nvs_open(MESH_NVS_NAMESPACE, NVS_READONLY, &handle);
+    if(err == ESP_ERR_NVS_NOT_FOUND) {
+        // Partition does not exist, and it is not created since we asked for READONLY.
+        // This is expected before name is actually set, we can silently return an error.
+        return ESP_FAIL;
+    }
+
+    if (err != ESP_OK) {
+		ESP_LOGE(TAG, "%s: failed to open nvs (err %04x)", __func__, err);
+        return err;
+    }
+
+    // Read data from NVS
+    err = nvs_get_str(handle, MESH_NVS_NAME_KEY, name, length);
+    if (err != ESP_OK) {
+		ESP_LOGE(TAG, "%s: failed to get str (err %04x)", __func__, err);
+        return err;
+    }
+
+    // Close NVS namespace
+    nvs_close(handle);
+
+    return ESP_OK;
+}
+
+esp_err_t mesh_config_name_updated(char *name)
+{
+    esp_err_t err;
+
+    if(strlen(name) >= sizeof(badge_network_info.name)) {
+		ESP_LOGE(TAG, "new name is too long, discarding");
+        return ESP_FAIL;
+    }
+
+    snprintf(badge_network_info.name, sizeof(badge_network_info.name), name);
+    err = mesh_save_name(name);
+    if(err != ESP_OK) {
+		ESP_LOGE(TAG, "New name was not saved (err %d)", err);
+        return err;
+    }
+
+    return ESP_OK;
+}
+
 esp_err_t mesh_configure_esp_ble_mesh()
 {
 	int err;
+    size_t name_length;
 
 	ESP_LOGV(TAG, "%s starting", __func__);
 
@@ -126,13 +234,23 @@ esp_err_t mesh_configure_esp_ble_mesh()
 	/* Make sure it's a unicast address (highest bit unset) */
 	badge_network_info.unicast_addr &= ~0x8000;
 
+    memset(badge_network_info.name, 0, sizeof(badge_network_info.name));
+    name_length = sizeof(badge_network_info.name);
+    err = load_name((char *)&badge_network_info.name, &name_length);
+    if(err != ESP_OK) {
+        snprintf(badge_network_info.name, sizeof(badge_network_info.name),
+            "P.A.D. %01x:%01x:%01x:%01x:%01x:%01x", _device_address[5], _device_address[4],
+            _device_address[3], _device_address[2], _device_address[1], _device_address[0]
+        );
+    }
+
     err = mesh_device_auto_enter_network(&badge_network_info);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "%s: Failed to auto-enter network", __func__);
         return err;
     }
 
-	ESP_LOGI(TAG, "%s done", __func__);
+	ESP_LOGV(TAG, "%s done", __func__);
 
     return ESP_OK;
 }
