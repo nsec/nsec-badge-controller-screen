@@ -33,10 +33,10 @@ esp_err_t send_ui_message(uint16_t addr, char *msg)
 esp_err_t ui_message_received(esp_ble_mesh_model_t *model, esp_ble_mesh_msg_ctx_t *ctx, struct net_buf_simple *buf)
 {
     char *msg = (char *)buf->data;
-	// if (ctx->addr == model->element->element_addr) {
-    //     ESP_LOGV(TAG, "%s: Ignoring message from self", __func__);
-	// 	return ESP_OK;
-	// }
+	if (ctx->addr == model->element->element_addr) {
+        ESP_LOGV(TAG, "%s: Ignoring message from self", __func__);
+        return ESP_OK;
+    }
 
     ESP_LOGV(TAG, "Received ui message from node=0x%04x msg='%s'", ctx->addr, msg);
 
