@@ -6,7 +6,7 @@
 #include "esp_ble_mesh_networking_api.h"
 
 #include "badge/mesh/host.h"
-#include "badge/mesh/models.h"
+#include "badge/mesh/main.h"
 #include "badge/mesh/ops/set_name.h"
 
 static const char *TAG = "badge/mesh";
@@ -26,12 +26,11 @@ esp_err_t send_set_name(uint16_t addr, char *name)
     set_name_data_t data = {};
 
     memset(&data, 0, sizeof(data));
-    snprintf(&data.name, sizeof(data.name), "%s", name);
+    snprintf((char *)&data.name, sizeof(data.name), "%s", name);
 
     ESP_LOGV(TAG, "%s: node=0x%04x name='%s'", __func__, addr, name);
 
-    err = esp_ble_mesh_client_model_send_msg(cli_vnd_model, &ctx, OP_VND_SET_NAME,
-            sizeof(data), (uint8_t *)&data, 10, false, ROLE_NODE);
+    err = mesh_client_send(addr, OP_VND_SET_NAME, (uint8_t *)&data, sizeof(data), false);
 	if (err != ESP_OK) {
         ESP_LOGE(TAG, "%s: failed", __func__);
         return err;

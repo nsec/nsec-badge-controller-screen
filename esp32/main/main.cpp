@@ -67,5 +67,5 @@ extern "C" void app_main(void) {
 
     BadgeMesh::getInstance().init();
 
-    xTaskCreate(console_task, "console task", 2048, NULL, 3, NULL);
+    xTaskCreate(console_task, "console task", 4096, NULL, 3, NULL);
 }

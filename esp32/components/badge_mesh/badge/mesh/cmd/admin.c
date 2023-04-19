@@ -15,6 +15,7 @@
 #include "badge/mesh/host.h"
 #include "badge/mesh/config.h"
 #include "badge/mesh/ops/set_name.h"
+#include "badge/mesh/ops/census.h"
 
 #if CONFIG_BADGE_MESH_ADMIN_COMMANDS
 
@@ -23,6 +24,7 @@ static const char *TAG = "cmd_mesh_admin";
 
 static int info_cmd(int argc, char **argv);
 static int help_cmd(int argc, char **argv);
+static int census_cmd(int argc, char **argv);
 static int set_name_cmd(int argc, char **argv);
 
 static struct {
@@ -46,6 +48,12 @@ const esp_console_cmd_t subcommands[] = {
         .help = "Print information about the mesh",
         .hint = NULL,
         .func = &info_cmd,
+    },
+    {
+        .command = "census",
+        .help = "Start or stop a network-wide census of all nodes",
+        .hint = NULL,
+        .func = &census_cmd,
     },
     {
         .command = "set-name",
@@ -99,6 +107,30 @@ static int help_cmd(int argc, char **argv)
     return ESP_OK;
 }
 
+static esp_err_t print_census_response(uint16_t addr)
+{
+    printf("Census response from 0x%04x\n", addr);
+    return ESP_OK;
+}
+
+static esp_err_t census_done(unsigned int seen)
+{
+    printf("Census recorded %u nodes.\n", seen);
+    return ESP_OK;
+}
+
+static int census_cmd(int argc, char **argv)
+{
+    if(argc > 1 && !strcasecmp(argv[1], "stop")) {
+        stop_census();
+        return ESP_OK;
+    }
+
+    send_census_request(CENSUS_DEFAULT_TIMEOUT_SECONDS, &print_census_response, &census_done);
+
+    return ESP_OK;
+}
+
 static int set_name_cmd(int argc, char **argv)
 {
     int nerrors = arg_parse(argc, argv, (void **) &set_name_args);
@@ -121,7 +153,6 @@ static int set_name_cmd(int argc, char **argv)
         return ESP_FAIL;
     }
 
-    printf("set-name 0x%04x '%s'\n", address, name);
     send_set_name(address, (char *)name);
 
     return ESP_OK;

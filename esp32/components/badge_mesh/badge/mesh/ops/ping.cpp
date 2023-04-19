@@ -3,10 +3,9 @@
 #include <esp_log.h>
 
 #include "esp_ble_mesh_defs.h"
-#include "esp_ble_mesh_networking_api.h"
 
 #include "badge/mesh/host.h"
-#include "badge/mesh/models.h"
+#include "badge/mesh/main.h"
 #include "badge/mesh/ops/ping.h"
 #include "badge/mesh/ops/pong.h"
 
@@ -31,8 +30,7 @@ esp_err_t send_ping(uint64_t idx)
 
     ESP_LOGV(TAG, "Sending ping from node=0x%02x idx=%llu", ping.src_node_addr, ping.idx);
 
-    err = esp_ble_mesh_client_model_send_msg(cli_vnd_model, &ctx, OP_VND_PING,
-            sizeof(ping), (uint8_t *)&ping, 10, true, ROLE_NODE);
+    err = mesh_client_send(NETWORK_GROUP_ADDR, OP_VND_PING, (uint8_t *)&ping, sizeof(ping), true);
 	if (err != ESP_OK) {
         ESP_LOGE(TAG, "%s: Send ping failed", __func__);
         return err;

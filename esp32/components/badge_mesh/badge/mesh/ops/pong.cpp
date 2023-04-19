@@ -3,10 +3,9 @@
 #include <esp_log.h>
 
 #include "esp_ble_mesh_defs.h"
-#include "esp_ble_mesh_networking_api.h"
 
 #include "badge/mesh/host.h"
-#include "badge/mesh/models.h"
+#include "badge/mesh/main.h"
 #include "badge/mesh/ops/ping.h"
 #include "badge/mesh/ops/pong.h"
 
@@ -30,7 +29,7 @@ esp_err_t send_pong(uint16_t addr, uint64_t ping_idx)
 
     ESP_LOGV(TAG, "Sending pong in response to node=0x%02x idx=%llu", addr, ping_idx);
 
-    err = esp_ble_mesh_server_model_send_msg(srv_vnd_model, &ctx, OP_VND_PONG, sizeof(pong), (uint8_t *)&pong);
+    err = mesh_server_send(addr, OP_VND_PONG, (uint8_t *)&pong, sizeof(pong));
 	if (err != ESP_OK) {
         ESP_LOGE(TAG, "%s: Send pong failed (err %u)", __func__, err);
         return err;

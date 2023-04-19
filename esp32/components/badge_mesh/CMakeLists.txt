@@ -7,7 +7,8 @@ set(SOURCES
     "badge/mesh/ops.cpp"
     "badge/mesh/ops/ping.cpp"
     "badge/mesh/ops/pong.cpp"
-    "badge/mesh/ops/set_name.c"
+    "badge/mesh/ops/set_name.cpp"
+    "badge/mesh/ops/census.cpp"
 )
 
 if(CONFIG_BADGE_MESH_ADMIN_COMMANDS)

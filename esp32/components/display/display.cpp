@@ -53,12 +53,12 @@ static void _initialize_lv_buffers()
     }
     memset(buf1, 0, size_in_px);
 
-    buf2 = heap_caps_malloc(size_in_px * sizeof(lv_color_t), MALLOC_CAP_8BIT);
+    /*buf2 = heap_caps_malloc(size_in_px * sizeof(lv_color_t), MALLOC_CAP_8BIT);
     if (buf2 == NULL) {
         ESP_LOGE(TAG, "Failed to allocate buf2 %lu", size_in_px);
         return;
     }
-    memset(buf2, 0, size_in_px);
+    memset(buf2, 0, size_in_px);*/
 
     lv_disp_buf_init(&_lv_display_buffer, buf1, buf2, size_in_px);
 
