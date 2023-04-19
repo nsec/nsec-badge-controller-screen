@@ -191,6 +191,23 @@ void Buzzer::taskHandler()
                 case Buzzer::Sounds::Sad:
                     _bendTones(880, 669, 1.02, 20, 200);
                     break;
+                case Buzzer::Sounds::ImportantNotice:
+                {
+                    _buzz(NOTE_D8, 300, 300);
+                    _buzz(NOTE_D8, 300, 300);
+                    _buzz(NOTE_D8, 300, 300);
+                    break;
+                }
+                case Buzzer::Sounds::LevelUp:
+                {
+                    _bendTones(NOTE_A4, NOTE_A5, 1.05, 60, 10);
+                    break;
+                }
+                case Buzzer::Sounds::LevelDown:
+                {
+                    _bendTones(NOTE_A5, NOTE_A4, 1.05, 60, 10);
+                    break;
+                }
             }
             getInstance().stopPlaying();
         }

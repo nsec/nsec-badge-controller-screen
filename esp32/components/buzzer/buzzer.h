@@ -44,6 +44,10 @@ class Buzzer
         HappyShort,
         Sad,
 
+        ImportantNotice,
+        LevelUp,
+        LevelDown,
+
         ListCount,
     };
 
