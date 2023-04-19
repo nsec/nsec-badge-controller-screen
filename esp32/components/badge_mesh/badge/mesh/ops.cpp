@@ -5,7 +5,6 @@
 
 #include "badge/mesh/ops.h"
 #include "badge/mesh/ops/ping.h"
-#include "badge/mesh/ops/pong.h"
 #include "badge/mesh/ops/set_name.h"
 #include "badge/mesh/ops/census.h"
 #include "badge/mesh/ops/ui_message.h"

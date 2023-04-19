@@ -26,6 +26,8 @@
 static const char* TAG = "console";
 #define PROMPT_STR "nsec"
 
+TaskHandle_t console_task_handle;
+
 static void initialize_console(void)
 {
     /* drain stdout before reconfiguring it */
@@ -165,4 +167,9 @@ void console_task(void *args)
 
     ESP_LOGE(TAG, "Error or end-of-input, terminating console");
     esp_console_deinit();
+}
+
+void console_create_task()
+{
+    xTaskCreate(console_task, "console task", 4096, NULL, 3, &console_task_handle);
 }

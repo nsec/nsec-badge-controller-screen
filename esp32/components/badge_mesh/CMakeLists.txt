@@ -6,7 +6,6 @@ set(SOURCES
     "badge/mesh/network.cpp"
     "badge/mesh/ops.cpp"
     "badge/mesh/ops/ping.cpp"
-    "badge/mesh/ops/pong.cpp"
     "badge/mesh/ops/set_name.cpp"
     "badge/mesh/ops/census.cpp"
     "badge/mesh/ops/ui_message.cpp"
@@ -20,5 +19,5 @@ endif()
 idf_component_register(
     SRCS ${SOURCES}
     INCLUDE_DIRS "."
-    REQUIRES driver bt mbedtls console nvs_flash display
+    REQUIRES driver bt mbedtls console nvs_flash display cmd
 )

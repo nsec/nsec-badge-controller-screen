@@ -10,12 +10,14 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
+#include "console.h"
 #include "badge/mesh/cmd/admin.h"
 #include "badge/mesh/network.h"
 #include "badge/mesh/host.h"
 #include "badge/mesh/config.h"
 #include "badge/mesh/ops/set_name.h"
 #include "badge/mesh/ops/census.h"
+#include "badge/mesh/ops/ping.h"
 #include "badge/mesh/ops/ui_message.h"
 
 #if CONFIG_BADGE_MESH_ADMIN_COMMANDS
@@ -26,6 +28,7 @@ static const char *TAG = "cmd_mesh_admin";
 static int info_cmd(int argc, char **argv);
 static int help_cmd(int argc, char **argv);
 static int census_cmd(int argc, char **argv);
+static int ping_cmd(int argc, char **argv);
 static int set_name_cmd(int argc, char **argv);
 static int ui_message_cmd(int argc, char **argv);
 
@@ -56,6 +59,12 @@ const esp_console_cmd_t subcommands[] = {
         .help = "Start or stop a network-wide census of all nodes",
         .hint = NULL,
         .func = &census_cmd,
+    },
+    {
+        .command = "ping",
+        .help = "Ping a node",
+        .hint = NULL,
+        .func = &ping_cmd,
     },
     {
         .command = "set-name",
@@ -134,6 +143,27 @@ static int census_cmd(int argc, char **argv)
 
     printf("Census done, %u nodes responded, %u screens, %u badges\n", census.seen,
         census.types_seen[census_device_type::screen], census.types_seen[census_device_type::badge]);
+
+    return ESP_OK;
+}
+
+static int ping_cmd(int argc, char **argv)
+{
+    uint16_t address = 0;
+
+    /* block until pong is received, or until time is expired */
+    if (sscanf(argv[1], "0x%04hx", &address) != 1) {
+        printf("address not valid (format is 0xffff)\n");
+        return ESP_FAIL;
+    }
+
+    send_ping(address, console_task_handle);
+
+    if(xTaskNotifyWait(0xffffffff, 0, NULL, pdMS_TO_TICKS(5 * 1000)) == pdTRUE) {
+        printf("Pong received\n");
+    } else {
+        printf("Ping timed out (waited 5 seconds)...\n");
+    }
 
     return ESP_OK;
 }
