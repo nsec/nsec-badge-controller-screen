@@ -13,7 +13,7 @@ set(SOURCES
 )
 
 if(CONFIG_BADGE_MESH_ADMIN_COMMANDS)
-    list(APPEND SOURCES "badge/mesh/cmd/admin.c")
+    list(APPEND SOURCES "badge/mesh/cmd/admin.cpp")
 endif()
 
 

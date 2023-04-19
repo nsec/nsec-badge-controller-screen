@@ -24,6 +24,7 @@ esp_err_t BadgeMesh::clientSend(uint16_t dst_addr, uint32_t op, uint8_t *msg, un
 		.net_idx = badge_network_info.net_idx,
 		.app_idx = badge_network_info.app_idx,
 		.addr = dst_addr,
+        .send_rel = 1,
 		.send_ttl = DEFAULT_TTL,
 	};
 

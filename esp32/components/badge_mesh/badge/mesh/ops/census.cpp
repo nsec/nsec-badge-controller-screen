@@ -15,22 +15,9 @@ static const char *TAG = "badge/mesh";
 
 census_ctx_t census = {
     .in_progress = false,
-    .done_timer = 0,
 };
 
-static void census_done_timer(TimerHandle_t xTimer)
-{
-    if(!census.in_progress) {
-        ESP_LOGE(TAG, "%s: no census in progress, but timer was called", __func__);
-        return;
-    }
-
-    census.done_cb(census.seen);
-
-    stop_census();
-}
-
-esp_err_t send_census_request(unsigned int timeout, census_response_cb_t resp_cb, census_done_cb_t done_cb)
+esp_err_t send_census_request(census_response_cb_t resp_cb)
 {
     esp_err_t err;
 
@@ -39,16 +26,17 @@ esp_err_t send_census_request(unsigned int timeout, census_response_cb_t resp_cb
         return ESP_FAIL;
     }
 
-    if(!timeout || !resp_cb || !done_cb) {
+    if(!resp_cb) {
         ESP_LOGE(TAG, "%s: invalid arguments", __func__);
         return ESP_FAIL;
     }
 
 	esp_fill_random(&census.uid, sizeof(census.uid));
-    census.timeout = timeout;
     census.resp_cb = resp_cb;
-    census.done_cb = done_cb;
     census.seen = 0;
+
+    for(int i=0;i<census_device_type_t::count;i++)
+        census.types_seen[i] = 0;
 
     census_request_data_t data = {
         .uid = census.uid,
@@ -59,12 +47,6 @@ esp_err_t send_census_request(unsigned int timeout, census_response_cb_t resp_cb
         ESP_LOGE(TAG, "%s: failed", __func__);
         return err;
     }
-
-    if(census.done_timer)
-        xTimerDelete(census.done_timer, 10);
-
-    census.done_timer = xTimerCreate("census", pdMS_TO_TICKS(timeout * 1000), pdFALSE, NULL, &census_done_timer);
-    xTimerStart(census.done_timer, 10);
 
     ESP_LOGV(TAG, "Started census uid=0x%08lx", census.uid);
     census.in_progress = true;
@@ -88,7 +70,8 @@ esp_err_t census_response_received(esp_ble_mesh_model_t *model, esp_ble_mesh_msg
     ESP_LOGV(TAG, "%s from node=0x%04x uid=0x%08lx", __func__, ctx->addr, data->uid);
 
     census.seen++;
-    census.resp_cb(ctx->addr);
+    census.types_seen[data->device_type]++;
+    census.resp_cb(ctx->addr, data->device_type);
 
     return ESP_OK;
 }
@@ -111,6 +94,7 @@ esp_err_t send_census_response(uint16_t dst, uint32_t uid)
 
     memset(&data, 0, sizeof(data));
     data.uid = uid;
+    data.device_type = CENSUS_DEVICE_TYPE;
 
     ESP_LOGV(TAG, "%s: dst=0x%04x uid=0x%08lx", __func__, dst, uid);
 
@@ -132,6 +116,9 @@ esp_err_t census_request_received(esp_ble_mesh_model_t *model, esp_ble_mesh_msg_
 	}
 
     ESP_LOGV(TAG, "%s from node=0x%04x uid=0x%08lx", __func__, ctx->addr, data->uid);
+
+    /* try avoiding congesting network */
+    vTaskDelay((esp_random() % CENSUS_FUZZ) / portTICK_PERIOD_MS);
 
     send_census_response(ctx->addr, data->uid);
 

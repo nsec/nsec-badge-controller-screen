@@ -115,26 +115,25 @@ static int help_cmd(int argc, char **argv)
     return ESP_OK;
 }
 
-static esp_err_t print_census_response(uint16_t addr)
+static esp_err_t print_census_response(uint16_t addr, census_device_type_t type)
 {
-    printf("Census response from 0x%04x\n", addr);
-    return ESP_OK;
-}
-
-static esp_err_t census_done(unsigned int seen)
-{
-    printf("Census recorded %u nodes.\n", seen);
+    printf("Census response from 0x%04x (%s)\n", addr, type == 0 ? "screen" : "badge");
     return ESP_OK;
 }
 
 static int census_cmd(int argc, char **argv)
 {
-    if(argc > 1 && !strcasecmp(argv[1], "stop")) {
-        stop_census();
-        return ESP_OK;
-    }
+    printf("Census will run for %u seconds\n\n", CENSUS_DEFAULT_TIMEOUT_SECONDS);
 
-    send_census_request(CENSUS_DEFAULT_TIMEOUT_SECONDS, &print_census_response, &census_done);
+    send_census_request(&print_census_response);
+
+    /* wait for a few seconds */
+    vTaskDelay((CENSUS_DEFAULT_TIMEOUT_SECONDS * 1000) / portTICK_PERIOD_MS);
+
+    stop_census();
+
+    printf("Census done, %u nodes responded, %u screens, %u badges\n", census.seen,
+        census.types_seen[census_device_type::screen], census.types_seen[census_device_type::badge]);
 
     return ESP_OK;
 }
