@@ -31,6 +31,12 @@ esp_err_t mesh_configure_esp_ble_mesh();
 */
 esp_err_t mesh_config_name_updated(char *name);
 
+/*
+    Get and set node address, this is done only once when screen is provisioned and not available afterwards
+*/
+esp_err_t save_node_addr(uint16_t addr);
+esp_err_t load_node_addr(uint16_t *addr);
+
 #ifdef __cplusplus
 }
 #endif

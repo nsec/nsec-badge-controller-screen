@@ -22,7 +22,8 @@
 static const char *TAG = "badge/mesh";
 
 #define MESH_NVS_NAMESPACE "badge-mesh"
-#define MESH_NVS_NAME_KEY "node-name"
+#define MESH_NVS_NODE_NAME_KEY "node-name"
+#define MESH_NVS_NODE_ADDR_KEY "node-addr"
 
 badge_network_info_t badge_network_info = {
     .net_key = {
@@ -102,17 +103,10 @@ static esp_ble_mesh_comp_t comp = {
 	.elements = elements,
 };
 
-static esp_err_t mesh_save_name(char *name)
+static esp_err_t save_name(char *name)
 {
     nvs_handle_t handle;
     esp_err_t err;
-
-    // Initialize NVS
-    err = nvs_flash_init();
-    if (err != ESP_OK) {
-		ESP_LOGE(TAG, "%s: failed to init nvs (err %d)", __func__, err);
-        return err;
-    }
 
     // Open NVS namespace
     err = nvs_open(MESH_NVS_NAMESPACE, NVS_READWRITE, &handle);
@@ -122,7 +116,7 @@ static esp_err_t mesh_save_name(char *name)
     }
 
     // Write data to NVS
-    err = nvs_set_str(handle, MESH_NVS_NAME_KEY, name);
+    err = nvs_set_str(handle, MESH_NVS_NODE_NAME_KEY, name);
     if (err != ESP_OK) {
 		ESP_LOGE(TAG, "%s: failed to set str (err %d)", __func__, err);
         return err;
@@ -152,28 +146,23 @@ static esp_err_t load_name(char *name, size_t *length)
     nvs_handle_t handle;
     esp_err_t err;
 
-    // Initialize NVS
-    err = nvs_flash_init();
-    if (err != ESP_OK) {
-		ESP_LOGE(TAG, "%s: failed to init nvs (err %04x)", __func__, err);
-        return err;
-    }
-
     err = nvs_open(MESH_NVS_NAMESPACE, NVS_READONLY, &handle);
     if(err == ESP_ERR_NVS_NOT_FOUND) {
         // Partition does not exist, and it is not created since we asked for READONLY.
         // This is expected before name is actually set, we can silently return an error.
         return ESP_FAIL;
-    }
-
-    if (err != ESP_OK) {
+    } else if (err != ESP_OK) {
 		ESP_LOGE(TAG, "%s: failed to open nvs (err %04x)", __func__, err);
         return err;
     }
 
     // Read data from NVS
-    err = nvs_get_str(handle, MESH_NVS_NAME_KEY, name, length);
-    if (err != ESP_OK) {
+    err = nvs_get_str(handle, MESH_NVS_NODE_NAME_KEY, name, length);
+    if(err == ESP_ERR_NVS_NOT_FOUND) {
+        // Key does not exist, and it is not created since we asked for READONLY.
+        // This is expected before key is actually set, we can silently return an error.
+        return ESP_FAIL;
+    } if (err != ESP_OK) {
 		ESP_LOGE(TAG, "%s: failed to get str (err %04x)", __func__, err);
         return err;
     }
@@ -194,7 +183,7 @@ esp_err_t mesh_config_name_updated(char *name)
     }
 
     snprintf(badge_network_info.name, sizeof(badge_network_info.name), name);
-    err = mesh_save_name(name);
+    err = save_name(name);
     if(err != ESP_OK) {
 		ESP_LOGE(TAG, "New name was not saved (err %d)", err);
         return err;
@@ -203,10 +192,78 @@ esp_err_t mesh_config_name_updated(char *name)
     return ESP_OK;
 }
 
+esp_err_t save_node_addr(uint16_t addr)
+{
+    nvs_handle_t handle;
+    esp_err_t err;
+
+    // Open NVS namespace
+    err = nvs_open(MESH_NVS_NAMESPACE, NVS_READWRITE, &handle);
+    if (err != ESP_OK) {
+		ESP_LOGE(TAG, "%s: failed to open nvs (err %d)", __func__, err);
+        return err;
+    }
+
+    // Write data to NVS
+    err = nvs_set_u16(handle, MESH_NVS_NODE_ADDR_KEY, addr);
+    if (err != ESP_OK) {
+		ESP_LOGE(TAG, "%s: failed to set str (err %d)", __func__, err);
+        return err;
+    }
+
+    // Commit changes to NVS
+    err = nvs_commit(handle);
+    if (err != ESP_OK) {
+		ESP_LOGE(TAG, "%s: failed to commit (err %d)", __func__, err);
+        return err;
+    }
+
+    // Close NVS namespace
+    nvs_close(handle);
+
+    return ESP_OK;
+}
+
+/*
+    Write stored node address into '*addr'.
+*/
+esp_err_t load_node_addr(uint16_t *addr)
+{
+    nvs_handle_t handle;
+    esp_err_t err;
+
+    err = nvs_open(MESH_NVS_NAMESPACE, NVS_READONLY, &handle);
+    if(err == ESP_ERR_NVS_NOT_FOUND) {
+        // Partition does not exist, and it is not created since we asked for READONLY.
+        // This is expected before name is actually set, we can silently return an error.
+        return ESP_FAIL;
+    } else if (err != ESP_OK) {
+		ESP_LOGE(TAG, "%s: failed to open nvs (err %04x)", __func__, err);
+        return err;
+    }
+
+    // Read data from NVS
+    err = nvs_get_u16(handle, MESH_NVS_NODE_ADDR_KEY, addr);
+    if(err == ESP_ERR_NVS_NOT_FOUND) {
+        // Key does not exist, and it is not created since we asked for READONLY.
+        // This is expected before key is actually set, we can silently return an error.
+        return ESP_FAIL;
+    } else if (err != ESP_OK) {
+		ESP_LOGE(TAG, "%s: failed to get u16 (err %04x)", __func__, err);
+        return err;
+    }
+
+    // Close NVS namespace
+    nvs_close(handle);
+
+    return ESP_OK;
+}
+
 esp_err_t mesh_configure_esp_ble_mesh()
 {
 	int err;
     size_t name_length;
+    int random_address = false;
 
 	ESP_LOGV(TAG, "%s starting", __func__);
 
@@ -229,19 +286,32 @@ esp_err_t mesh_configure_esp_ble_mesh()
     }
 
 	esp_fill_random(&badge_network_info.dev_key, sizeof(badge_network_info.dev_key));
-	esp_fill_random(&badge_network_info.unicast_addr, sizeof(badge_network_info.unicast_addr));
 
-	/* Make sure it's a unicast address (highest bit unset) */
-	badge_network_info.unicast_addr &= ~0x8000;
+    /* choose a random unicast address unless one is already provisioned */
+    if(ESP_OK != load_node_addr(&badge_network_info.unicast_addr)) {
+        random_address = true;
+        do {
+        	esp_fill_random(&badge_network_info.unicast_addr, sizeof(badge_network_info.unicast_addr));
+
+            /* Make sure it's a unicast address (highest bit unset) */
+            badge_network_info.unicast_addr &= ~0x8000;
+        } while(badge_network_info.unicast_addr >= SCREEN_ADDRESS_RANGE);
+    }
 
     memset(badge_network_info.name, 0, sizeof(badge_network_info.name));
     name_length = sizeof(badge_network_info.name);
     err = load_name((char *)&badge_network_info.name, &name_length);
     if(err != ESP_OK) {
-        snprintf(badge_network_info.name, sizeof(badge_network_info.name),
-            "P.A.D. %01x:%01x:%01x:%01x:%01x:%01x", _device_address[5], _device_address[4],
-            _device_address[3], _device_address[2], _device_address[1], _device_address[0]
-        );
+        if(random_address) {
+            snprintf(badge_network_info.name, sizeof(badge_network_info.name),
+                BADGE_NAME_PREFIX " %01x:%01x:%01x:%01x:%01x:%01x", _device_address[5], _device_address[4],
+                _device_address[3], _device_address[2], _device_address[1], _device_address[0]
+            );
+        } else {
+            snprintf(badge_network_info.name, sizeof(badge_network_info.name),
+                BADGE_NAME_PREFIX " %u", badge_network_info.unicast_addr % SCREEN_ADDRESS_RANGE
+            );
+        }
     }
 
     err = mesh_device_auto_enter_network(&badge_network_info);

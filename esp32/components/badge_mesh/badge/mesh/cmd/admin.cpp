@@ -19,18 +19,20 @@
 #include "badge/mesh/ops/census.h"
 #include "badge/mesh/ops/ping.h"
 #include "badge/mesh/ops/ui_message.h"
+#include "badge/mesh/ops/info.h"
 
 #if CONFIG_BADGE_MESH_ADMIN_COMMANDS
 
 static const char *TAG = "cmd_mesh_admin";
 #define MESH_ADMIN_CMD "mesh-admin"
 
-static int info_cmd(int argc, char **argv);
+static int show_cmd(int argc, char **argv);
 static int help_cmd(int argc, char **argv);
 static int census_cmd(int argc, char **argv);
 static int ping_cmd(int argc, char **argv);
 static int set_name_cmd(int argc, char **argv);
 static int ui_message_cmd(int argc, char **argv);
+static int info_cmd(int argc, char **argv);
 
 static struct {
     struct arg_str *address;
@@ -49,10 +51,10 @@ const esp_console_cmd_t subcommands[] = {
         .func = &help_cmd,
     },
     {
-        .command = "info",
+        .command = "show",
         .help = "Print information about the mesh",
         .hint = NULL,
-        .func = &info_cmd,
+        .func = &show_cmd,
     },
     {
         .command = "census",
@@ -65,6 +67,12 @@ const esp_console_cmd_t subcommands[] = {
         .help = "Ping a node",
         .hint = NULL,
         .func = &ping_cmd,
+    },
+    {
+        .command = "info",
+        .help = "Send an information request to a node",
+        .hint = NULL,
+        .func = &info_cmd,
     },
     {
         .command = "set-name",
@@ -81,7 +89,7 @@ const esp_console_cmd_t subcommands[] = {
     },
 };
 
-static int info_cmd(int argc, char **argv)
+static int show_cmd(int argc, char **argv)
 {
     printf("Mesh:\n");
     printf("  → host initialized: %s\n", mesh_host_initialized ? "yes" : "no");
@@ -151,7 +159,6 @@ static int ping_cmd(int argc, char **argv)
 {
     uint16_t address = 0;
 
-    /* block until pong is received, or until time is expired */
     if (sscanf(argv[1], "0x%04hx", &address) != 1) {
         printf("address not valid (format is 0xffff)\n");
         return ESP_FAIL;
@@ -159,10 +166,36 @@ static int ping_cmd(int argc, char **argv)
 
     send_ping(address, console_task_handle);
 
+    /* block until pong is received, or until time is expired */
     if(xTaskNotifyWait(0xffffffff, 0, NULL, pdMS_TO_TICKS(5 * 1000)) == pdTRUE) {
         printf("Pong received\n");
     } else {
         printf("Ping timed out (waited 5 seconds)...\n");
+    }
+
+    return ESP_OK;
+}
+
+static int info_cmd(int argc, char **argv)
+{
+    uint16_t address = 0;
+
+    if (sscanf(argv[1], "0x%04hx", &address) != 1) {
+        printf("address not valid (format is 0xffff)\n");
+        return ESP_FAIL;
+    }
+
+    send_info_request(address, console_task_handle);
+
+    /* block until response is received, or until time is expired */
+    info_response_data_t *resp = &info_request.response;
+    if(xTaskNotifyWait(0xffffffff, 0, NULL, pdMS_TO_TICKS(5 * 1000)) == pdTRUE) {
+        printf("mac=%02x:%02x:%02x:%02x:%02x:%02x name='%s'\n",
+            resp->mac_addr[5], resp->mac_addr[4], resp->mac_addr[3],
+            resp->mac_addr[2], resp->mac_addr[1], resp->mac_addr[0],
+            resp->name);
+    } else {
+        printf("Info request timed out (waited 5 seconds)...\n");
     }
 
     return ESP_OK;

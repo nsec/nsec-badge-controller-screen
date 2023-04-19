@@ -4,11 +4,13 @@ set(SOURCES
     "badge/mesh/main.cpp"
     "badge/mesh/models.cpp"
     "badge/mesh/network.cpp"
+    "badge/mesh/cmd/provision.cpp"
     "badge/mesh/ops.cpp"
     "badge/mesh/ops/ping.cpp"
     "badge/mesh/ops/set_name.cpp"
     "badge/mesh/ops/census.cpp"
     "badge/mesh/ops/ui_message.cpp"
+    "badge/mesh/ops/info.cpp"
 )
 
 if(CONFIG_BADGE_MESH_ADMIN_COMMANDS)

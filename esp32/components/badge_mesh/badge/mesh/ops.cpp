@@ -8,6 +8,7 @@
 #include "badge/mesh/ops/set_name.h"
 #include "badge/mesh/ops/census.h"
 #include "badge/mesh/ops/ui_message.h"
+#include "badge/mesh/ops/info.h"
 
 static const char *TAG = "badge/mesh";
 
@@ -22,6 +23,7 @@ static const char *TAG = "badge/mesh";
 */
 esp_ble_mesh_model_op_t vnd_cli_ops[] = {
     ESP_BLE_MESH_MODEL_OP(OP_VND_PONG, sizeof(ping_data_t)),
+    ESP_BLE_MESH_MODEL_OP(OP_VND_INFO_RESPONSE, sizeof(info_response_data_t)),
     ESP_BLE_MESH_MODEL_OP_END,
 };
 
@@ -40,6 +42,7 @@ esp_ble_mesh_model_op_t vnd_srv_ops[] = {
     ESP_BLE_MESH_MODEL_OP(OP_VND_CENSUS_REQUEST, sizeof(census_request_data_t)),
     ESP_BLE_MESH_MODEL_OP(OP_VND_CENSUS_RESPONSE, sizeof(census_response_data_t)),
     ESP_BLE_MESH_MODEL_OP(OP_VND_UI_MESSAGE, 1),
+    ESP_BLE_MESH_MODEL_OP(OP_VND_INFO_REQUEST, 0),
 	ESP_BLE_MESH_MODEL_OP_END,
 };
 
@@ -53,11 +56,12 @@ esp_ble_mesh_model_op_t vnd_srv_ops[] = {
         { client_message_type, 0 },
 */
 esp_ble_mesh_client_op_pair_t op_pair[] = {
-    { OP_VND_PING,              OP_VND_PONG      },
-    { OP_VND_SET_NAME,          NULL             },
-    { OP_VND_CENSUS_REQUEST,    NULL             },
-    { OP_VND_CENSUS_RESPONSE,   NULL             },
-    { OP_VND_UI_MESSAGE,        NULL             },
+    { OP_VND_PING,              OP_VND_PONG             },
+    { OP_VND_SET_NAME,          NULL                    },
+    { OP_VND_CENSUS_REQUEST,    NULL                    },
+    { OP_VND_CENSUS_RESPONSE,   NULL                    },
+    { OP_VND_UI_MESSAGE,        NULL                    },
+    { OP_VND_INFO_REQUEST,      OP_VND_INFO_RESPONSE    },
 };
 
 esp_ble_mesh_client_t mesh_client = {
@@ -75,6 +79,8 @@ mesh_callback_t mesh_callbacks[] = {
     { .op = OP_VND_CENSUS_REQUEST, .cb = census_request_received },
     { .op = OP_VND_CENSUS_RESPONSE, .cb = census_response_received },
     { .op = OP_VND_UI_MESSAGE, .cb = ui_message_received },
+    { .op = OP_VND_INFO_REQUEST, .cb = info_request_received },
+    { .op = OP_VND_INFO_RESPONSE, .cb = info_response_received },
 
     { .op = 0, .cb = 0 }, // keep last
 };
