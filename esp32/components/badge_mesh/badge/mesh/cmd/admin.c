@@ -16,6 +16,7 @@
 #include "badge/mesh/config.h"
 #include "badge/mesh/ops/set_name.h"
 #include "badge/mesh/ops/census.h"
+#include "badge/mesh/ops/ui_message.h"
 
 #if CONFIG_BADGE_MESH_ADMIN_COMMANDS
 
@@ -26,6 +27,7 @@ static int info_cmd(int argc, char **argv);
 static int help_cmd(int argc, char **argv);
 static int census_cmd(int argc, char **argv);
 static int set_name_cmd(int argc, char **argv);
+static int ui_message_cmd(int argc, char **argv);
 
 static struct {
     struct arg_str *address;
@@ -61,6 +63,12 @@ const esp_console_cmd_t subcommands[] = {
         .hint = NULL,
         .func = &set_name_cmd,
         .argtable = &set_name_args
+    },
+    {
+        .command = "ui-message",
+        .help = "Send a message to a device and display it on the screen",
+        .hint = NULL,
+        .func = &ui_message_cmd,
     },
 };
 
@@ -154,6 +162,27 @@ static int set_name_cmd(int argc, char **argv)
     }
 
     send_set_name(address, (char *)name);
+
+    return ESP_OK;
+}
+
+static int ui_message_cmd(int argc, char **argv)
+{
+    uint16_t address = 0;
+
+    if(argc != 3) {
+        printf("Invalid message argument. Example: mesh-admin ui-message 0xffff \"hello this is dog\"\n");
+        return ESP_OK;
+    }
+
+    if(0 == strcasecmp(argv[1], "*")) {
+        address = badge_network_info.group_addr;
+    } if (sscanf(argv[1], "0x%04hx", &address) != 1) {
+        printf("address not valid (format is 0xffff)\n");
+        return ESP_FAIL;
+    }
+
+    send_ui_message(address, argv[2]);
 
     return ESP_OK;
 }

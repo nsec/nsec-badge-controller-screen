@@ -14,13 +14,6 @@ static const char *TAG = "badge/mesh";
 esp_err_t send_ping(uint64_t idx)
 {
     esp_err_t err;
-	esp_ble_mesh_msg_ctx_t ctx = {
-		.net_idx = badge_network_info.net_idx,
-		.app_idx = badge_network_info.app_idx,
-		.addr = badge_network_info.group_addr,
-		.send_ttl = DEFAULT_TTL,
-	};
-
     ping_data_t ping = {
         .src_node_addr = badge_network_info.unicast_addr,
         .idx = idx,

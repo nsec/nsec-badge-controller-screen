@@ -116,6 +116,7 @@ static void controls_create(lv_obj_t * parent)
 #if LV_DEMO_WIDGETS_SLIDESHOW == 0
     static const char * btns[] = {"Cancel", "Ok", ""};// 按钮数组
     lv_obj_t * m = lv_msgbox_create(lv_scr_act(), NULL);// 在主屏幕上创建一个消息框
+    lv_msgbox_set_text(m, "hello");
     lv_msgbox_add_btns(m, btns);            // 在消息框上添加按钮
     lv_obj_t * btnm = lv_msgbox_get_btnmatrix(m);
     lv_btnmatrix_set_btn_ctrl(btnm, 1, LV_BTNMATRIX_CTRL_CHECK_STATE);

@@ -17,7 +17,7 @@ extern "C" {
 #define OP_CENSUS_RESPONSE                0x04 /* must be unique */
 #define OP_VND_CENSUS_RESPONSE            ESP_BLE_MESH_MODEL_OP_3(OP_CENSUS_RESPONSE, NSEC_COMPANY_ID)
 
-#define CENSUS_DEFAULT_TIMEOUT_SECONDS    30
+#define CENSUS_DEFAULT_TIMEOUT_SECONDS    10
 
 typedef struct census_request_data {
     uint32_t uid; /* unique census ID, in case more than one is running at the same time */

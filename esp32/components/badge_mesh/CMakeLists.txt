@@ -9,6 +9,7 @@ set(SOURCES
     "badge/mesh/ops/pong.cpp"
     "badge/mesh/ops/set_name.cpp"
     "badge/mesh/ops/census.cpp"
+    "badge/mesh/ops/ui_message.cpp"
 )
 
 if(CONFIG_BADGE_MESH_ADMIN_COMMANDS)
@@ -19,5 +20,5 @@ endif()
 idf_component_register(
     SRCS ${SOURCES}
     INCLUDE_DIRS "."
-    REQUIRES driver bt mbedtls console nvs_flash
+    REQUIRES driver bt mbedtls console nvs_flash display
 )

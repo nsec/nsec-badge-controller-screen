@@ -5,41 +5,36 @@
 #include <freertos/task.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <driver/gpio.h>
-#include <driver/ledc.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-class Display
+class Wifi
 {
   public:
-    static Display &getInstance()
+    static Wifi &getInstance()
     {
-        static Display instance;
+        static Wifi instance;
         return instance;
     }
 
   private:
-    Display()
+    Wifi()
     {
     }
 
     static TaskHandle_t _taskHandle;
 
   public:
-    Display(Display const &) = delete;
-    void operator=(Display const &) = delete;
+    Wifi(Wifi const &) = delete;
+    void operator=(Wifi const &) = delete;
 
     void init();
-    void demo();
-    static void task(Display *instance) {
+    static void task(Wifi *instance) {
         instance->taskHandler();
     }
     void taskHandler();
-
-    void showMessage(char *msg);
 };
 
 #ifdef __cplusplus

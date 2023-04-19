@@ -94,6 +94,22 @@ static void touch_feedback(struct _lv_indev_drv_t *, lv_event_t evt)
     }
 }
 
+void Display::showMessage(char *msg)
+{
+	if (xSemaphoreTake(xGuiSemaphore, (TickType_t)10) == pdTRUE) {
+        static const char * btns[] = {"Ok", ""};
+        lv_obj_t * m = lv_msgbox_create(lv_scr_act(), NULL);
+        lv_msgbox_set_text(m, msg);
+        lv_msgbox_add_btns(m, btns);
+        lv_obj_t * btnm = lv_msgbox_get_btnmatrix(m);
+        lv_btnmatrix_set_btn_ctrl(btnm, 0, LV_BTNMATRIX_CTRL_CHECK_STATE);
+
+        xSemaphoreGive(xGuiSemaphore);
+    }
+
+    return;
+}
+
 void Display::taskHandler()
 {
 	if (xSemaphoreTake(xGuiSemaphore, (TickType_t)10) == pdTRUE) {

@@ -76,7 +76,7 @@ void xpt2046_init(void)
 	esp_rom_gpio_pad_select_gpio(XPT2046_CS);
 	gpio_set_direction(XPT2046_CS, GPIO_MODE_OUTPUT);// 设置GPIO为推挽输出模式
 
-	ESP_LOGI(TAG,"XPT2046 Initialization");
+	ESP_LOGV(TAG,"XPT2046 Initialization");
 
 	assert(ret == ESP_OK);
 }
@@ -96,7 +96,7 @@ bool xpt2046_read(lv_indev_drv_t * drv, lv_indev_data_t * data)
 	if (irq == 0) {
 		uint8_t data[2];
 		if(TP_Read_XY2(&ux,&uy)==1){
-			ESP_LOGI(TAG,"XPT2046 Read 原始值：x:%d   y:%d", ux, uy);
+			ESP_LOGV(TAG,"XPT2046 Read 原始值：x:%d   y:%d", ux, uy);
 			if(ux > 350){ux -= 350;}else{ux = 0;}
 			if(uy > 190){uy -= 190;}else{uy = 0;}
 			ux = (uint32_t)((uint32_t)ux * LV_HOR_RES) / (3870 - 350);//320   3870-350
@@ -105,13 +105,13 @@ bool xpt2046_read(lv_indev_drv_t * drv, lv_indev_data_t * data)
 			//ux =  LV_HOR_RES - ux;
 			ux=ux + 20;
 			//uy =  LV_VER_RES - uy;
-			ESP_LOGI(TAG,"XPT2046 Read 坐标值：x:%d   y:%d", ux, uy);
+			ESP_LOGV(TAG,"XPT2046 Read 坐标值：x:%d   y:%d", ux, uy);
 			x = ux;
 			y = uy;
 			last_x = ux;
 			last_y = uy;
 		}else{
-			ESP_LOGI(TAG,"XPT2046 Read Error");
+			ESP_LOGE(TAG,"XPT2046 Read Error");
 			x = last_x;
 			y = last_y;
 			avg_last = 0;

@@ -3,7 +3,6 @@
 #include <esp_log.h>
 
 #include "esp_ble_mesh_defs.h"
-#include "esp_ble_mesh_networking_api.h"
 
 #include "badge/mesh/host.h"
 #include "badge/mesh/main.h"
@@ -16,13 +15,6 @@ static const char *TAG = "badge/mesh";
 esp_err_t send_set_name(uint16_t addr, char *name)
 {
     esp_err_t err;
-	esp_ble_mesh_msg_ctx_t ctx = {
-		.net_idx = badge_network_info.net_idx,
-		.app_idx = badge_network_info.app_idx,
-		.addr = addr,
-		.send_ttl = DEFAULT_TTL,
-	};
-
     set_name_data_t data = {};
 
     memset(&data, 0, sizeof(data));
