@@ -9,8 +9,10 @@
 #include "argtable3/argtable3.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "esp32/rom/uart.h"
 
 #include "console.h"
+#include "badge/mesh/config.h"
 #include "badge/mesh/cmd/admin.h"
 #include "badge/mesh/network.h"
 #include "badge/mesh/host.h"
@@ -20,6 +22,7 @@
 #include "badge/mesh/ops/ping.h"
 #include "badge/mesh/ops/ui_message.h"
 #include "badge/mesh/ops/info.h"
+#include "badge/mesh/ops/neopixel.h"
 
 #if CONFIG_BADGE_MESH_ADMIN_COMMANDS
 
@@ -33,12 +36,25 @@ static int ping_cmd(int argc, char **argv);
 static int set_name_cmd(int argc, char **argv);
 static int ui_message_cmd(int argc, char **argv);
 static int info_cmd(int argc, char **argv);
+static int neopixel_cmd(int argc, char **argv);
 
 static struct {
     struct arg_str *address;
     struct arg_str *name;
     struct arg_end *end;
 } set_name_args;
+
+static struct {
+    struct arg_int *time;
+    struct arg_int *mode;
+    struct arg_int *brightness;
+    struct arg_str *color;
+    struct arg_int *red;
+    struct arg_int *green;
+    struct arg_int *blue;
+    struct arg_int *ttl;
+    struct arg_end *end;
+} neopixel_args;
 
 /*
     Kind of a hack to get sub-enus instead of all commands at the top level.
@@ -79,13 +95,20 @@ const esp_console_cmd_t subcommands[] = {
         .help = "Set a new name for a node in the mesh",
         .hint = NULL,
         .func = &set_name_cmd,
-        .argtable = &set_name_args
+        .argtable = &set_name_args,
     },
     {
         .command = "ui-message",
         .help = "Send a message to a device and display it on the screen",
         .hint = NULL,
         .func = &ui_message_cmd,
+    },
+    {
+        .command = "neopixel",
+        .help = "Send high-priority neopixel command to nearby badges",
+        .hint = NULL,
+        .func = &neopixel_cmd,
+        .argtable = &neopixel_args,
     },
 };
 
@@ -249,6 +272,57 @@ static int ui_message_cmd(int argc, char **argv)
     return ESP_OK;
 }
 
+static int neopixel_cmd(int argc, char **argv)
+{
+    int nerrors = arg_parse(argc, argv, (void **) &neopixel_args);
+    if (nerrors != 0) {
+        arg_print_errors(stderr, neopixel_args.end, argv[0]);
+        return 1;
+    }
+
+    bool loop_forever = neopixel_args.time->count == 0;
+    uint16_t time = loop_forever ? 60 : neopixel_args.time->ival[0];
+    uint8_t mode = neopixel_args.mode->ival[0];
+    uint8_t brightness = neopixel_args.brightness->count == 1 ? neopixel_args.brightness->ival[0] : 128;
+    uint32_t color;
+    int ttl = neopixel_args.ttl->count == 1 ? neopixel_args.ttl->ival[0] : DEFAULT_TTL;
+
+    if(neopixel_args.color->count == 1) {
+        const char *ptr = neopixel_args.color->sval[1];
+        if(strlen(ptr) > 2 && ptr[0] == '0' && ptr[1] == 'x')
+            ptr += 2;
+        if (sscanf(ptr, "%08lx", &color) != 1) {
+            printf("--color not valid (format is 0xffffff)\n");
+            return ESP_FAIL;
+        }
+
+        color &= 0xffffff;
+    } else if(neopixel_args.red->count == 1 || neopixel_args.green->count == 1 || neopixel_args.blue->count == 1) {
+        int r = neopixel_args.red->count == 1 ? neopixel_args.red->ival[0] : 0;
+        int g = neopixel_args.green->count == 1 ? neopixel_args.green->ival[0] : 0;
+        int b = neopixel_args.blue->count == 1 ? neopixel_args.blue->ival[0] : 0;
+
+        color = (r << 16) | (g << 8) | b;
+    } else {
+        printf("at least one of --color, --red, --green or --blue must be specified\n");
+        return ESP_FAIL;
+    }
+
+    do {
+        send_neopixel_set(time, mode, brightness, color, NEOPIXEL_FLAG_HIGH_PRIORITY, ttl);
+
+        if(loop_forever) {
+            vTaskDelay(30000 / portTICK_PERIOD_MS);
+
+            uint8_t chr;
+            if(ESP_OK == uart_rx_one_char(&chr))
+                break;
+        }
+    } while(loop_forever);
+
+    return ESP_OK;
+}
+
 static int mesh_admin_cmd(int argc, char **argv)
 {
     if(argc < 2) {
@@ -282,6 +356,16 @@ void register_mesh_admin_commands(void)
     set_name_args.address = arg_str1(NULL, NULL, "<addr>", "address of the node (format: 0xffff)");
     set_name_args.name = arg_str1(NULL, NULL, "<name>", "new name (maximum " TO_LITERAL(BADGE_NAME_LEN) " characters)");
     set_name_args.end = arg_end(2);
+
+    neopixel_args.time = arg_int0("t", "time", "<int>", "number of seconds to display the pattern for (loops until interrupted unless specified)");
+    neopixel_args.mode = arg_int1("m", "mode", "<int>", "number representing the mode to set (badge must support it)");
+    neopixel_args.brightness = arg_int0(NULL, "brightness", "<int>", "brightness value (0-255, default 128)");
+    neopixel_args.color = arg_str0("c", "color", "0xrrggbb", "hex color value (mutually exclusive with red/green/blue options)");
+    neopixel_args.red = arg_int0("r", "red", "<int>", "red color value (0-255)");
+    neopixel_args.green = arg_int0("g", "green", "<int>", "green color value (0-255)");
+    neopixel_args.blue = arg_int0("b", "blue", "<int>", "blue color value (0-255)");
+    neopixel_args.ttl = arg_int0(NULL, "ttl", "<int>", "number of mesh hops before message is no longer relayed (default " TO_LITERAL(DEFAULT_TTL) ")");
+    neopixel_args.end = arg_end(2);
 
     return;
 }

@@ -4,7 +4,6 @@
 
 #include "badge/mesh/main.h"
 #include "badge/mesh/host.h"
-#include "badge/mesh/config.h"
 
 static const char *TAG = "badge/mesh";
 
@@ -17,7 +16,7 @@ void BadgeMesh::init()
     xTaskCreate((TaskFunction_t)&(BadgeMesh::task), TAG, 4096, this, 5, &BadgeMesh::_taskHandle);
 }
 
-esp_err_t BadgeMesh::clientSend(uint16_t dst_addr, uint32_t op, uint8_t *msg, unsigned int length, bool needsResponse)
+esp_err_t BadgeMesh::clientSend(uint16_t dst_addr, uint32_t op, uint8_t *msg, unsigned int length, bool needsResponse, uint8_t ttl)
 {
     esp_err_t err;
 	esp_ble_mesh_msg_ctx_t ctx = {
@@ -25,7 +24,7 @@ esp_err_t BadgeMesh::clientSend(uint16_t dst_addr, uint32_t op, uint8_t *msg, un
 		.app_idx = badge_network_info.app_idx,
 		.addr = dst_addr,
         .send_rel = 1,
-		.send_ttl = DEFAULT_TTL,
+		.send_ttl = ttl,
 	};
 
 	if (xSemaphoreTake(_bt_semaphore, (TickType_t)10) != pdTRUE) {

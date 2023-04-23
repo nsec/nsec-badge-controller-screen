@@ -11,6 +11,7 @@ set(SOURCES
     "badge/mesh/ops/census.cpp"
     "badge/mesh/ops/ui_message.cpp"
     "badge/mesh/ops/info.cpp"
+    "badge/mesh/ops/neopixel.cpp"
 )
 
 if(CONFIG_BADGE_MESH_ADMIN_COMMANDS)

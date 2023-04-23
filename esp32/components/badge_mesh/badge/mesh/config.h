@@ -10,7 +10,7 @@ extern "C" {
 
 #define NSEC_COMPANY_ID         0xf00d
 
-#define DEFAULT_TTL             7
+#define DEFAULT_TTL             31
 
 #define NETWORK_GROUP_ADDR      0xc123
 #define NETWORK_NET_KEY_IDX     0x000
