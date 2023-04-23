@@ -9,7 +9,7 @@
 #include "argtable3/argtable3.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "esp32/rom/uart.h"
+#include "driver/uart.h"
 
 #include "console.h"
 #include "badge/mesh/config.h"
@@ -308,15 +308,23 @@ static int neopixel_cmd(int argc, char **argv)
         return ESP_FAIL;
     }
 
+    if(loop_forever) {
+        printf("Looping forever, press any key to interrupt");
+        fflush(stdout);
+    }
+
     do {
         send_neopixel_set(time, mode, brightness, color, NEOPIXEL_FLAG_HIGH_PRIORITY, ttl);
 
         if(loop_forever) {
-            vTaskDelay(30000 / portTICK_PERIOD_MS);
-
             uint8_t chr;
-            if(ESP_OK == uart_rx_one_char(&chr))
+            if(uart_read_bytes(CONFIG_ESP_CONSOLE_UART_NUM, &chr, 1, 10000 / portTICK_PERIOD_MS) == 1) {
+                printf("\n");
                 break;
+            }
+
+            printf(".");
+            fflush(stdout);
         }
     } while(loop_forever);
 
