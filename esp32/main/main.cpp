@@ -41,7 +41,6 @@ extern "C" void app_main(void) {
     Buzzer::getInstance().play(Buzzer::Sounds::Mode1);
 
     Display::getInstance().init();
-    Display::getInstance().demo();
 
     Disk::getInstance().init();
 

@@ -33,7 +33,6 @@ class Display
     void operator=(Display const &) = delete;
 
     void init();
-    void demo();
     static void task(Display *instance) {
         instance->taskHandler();
     }
