@@ -27,11 +27,11 @@ void NeoPixel::init()
 }
 
 void NeoPixel::start() {
-    printf("Starting neopixel");
     setColor(Save::save_data.neopixel_color);
     setBrightness(Save::save_data.neopixel_brightness);
     setMode(Save::save_data.neopixel_mode);
 }
+
 void NeoPixel::stop()
 {
     if (NeoPixel::_displayTaskHandle) {

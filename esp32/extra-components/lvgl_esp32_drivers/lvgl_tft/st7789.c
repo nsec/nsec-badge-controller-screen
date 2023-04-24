@@ -84,7 +84,7 @@ void st7789_init(void)
     //Initialize non-SPI GPIOs
     gpio_set_direction(ST7789_DC, GPIO_MODE_OUTPUT);
     gpio_set_direction(ST7789_RST, GPIO_MODE_OUTPUT);
-    
+
 #if ST7789_ENABLE_BACKLIGHT_CONTROL
     gpio_set_direction(ST7789_BCKL, GPIO_MODE_OUTPUT);
 #endif
@@ -95,7 +95,7 @@ void st7789_init(void)
     gpio_set_level(ST7789_RST, 1);
     vTaskDelay(100 / portTICK_RATE_MS);
 
-    printf("ST7789 initialization.\n");
+    //printf("ST7789 initialization.\n");
 
     //Send all the commands
     uint16_t cmd = 0;
@@ -116,7 +116,7 @@ void st7789_init(void)
 void st7789_enable_backlight(bool backlight)
 {
 #if ST7789_ENABLE_BACKLIGHT_CONTROL
-    printf("%s backlight.\n", backlight ? "Enabling" : "Disabling");
+    //printf("%s backlight.\n", backlight ? "Enabling" : "Disabling");
     uint32_t tmp = 0;
 
 #if (ST7789_BCKL_ACTIVE_LVL==1)
@@ -216,7 +216,7 @@ static void st7789_set_orientation(uint8_t orientation)
 
     ESP_LOGI(TAG, "Display orientation: %s", orientation_str[orientation]);
 
-    uint8_t data[] = 
+    uint8_t data[] =
     {
 #if CONFIG_LVGL_PREDEFINED_DISPLAY_TTGO
 	0x60, 0xA0, 0x00, 0xC0
@@ -224,7 +224,7 @@ static void st7789_set_orientation(uint8_t orientation)
 	0xC0, 0x00, 0x60, 0xA0
 #endif
     };
-    
+
     ESP_LOGI(TAG, "0x36 command value: 0x%02X", data[orientation]);
 
     st7789_send_cmd(ST7789_MADCTL);

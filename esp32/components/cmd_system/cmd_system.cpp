@@ -24,6 +24,7 @@
 #include "freertos/task.h"
 #include "cmd_system.h"
 #include "sdkconfig.h"
+#include "save.h"
 
 #ifdef CONFIG_FREERTOS_USE_STATS_FORMATTING_FUNCTIONS
 #define WITH_TASKS_INFO 1
@@ -248,7 +249,7 @@ static int deep_sleep(int argc, char **argv)
 #if SOC_PM_SUPPORT_EXT_WAKEUP
     if (deep_sleep_args.wakeup_gpio_num->count) {
         int io_num = deep_sleep_args.wakeup_gpio_num->ival[0];
-        if (!esp_sleep_is_valid_wakeup_gpio(io_num)) {
+        if (!esp_sleep_is_valid_wakeup_gpio((gpio_num_t)io_num)) {
             ESP_LOGE(TAG, "GPIO %d is not an RTC IO", io_num);
             return 1;
         }
@@ -263,7 +264,7 @@ static int deep_sleep(int argc, char **argv)
         ESP_LOGI(TAG, "Enabling wakeup on GPIO%d, wakeup on %s level",
                  io_num, level ? "HIGH" : "LOW");
 
-        ESP_ERROR_CHECK( esp_sleep_enable_ext1_wakeup(1ULL << io_num, level) );
+        ESP_ERROR_CHECK( esp_sleep_enable_ext1_wakeup(1ULL << io_num, (esp_sleep_ext1_wakeup_mode_t)level) );
         ESP_LOGE(TAG, "GPIO wakeup from deep sleep currently unsupported on ESP32-C3");
     }
 #endif // SOC_PM_SUPPORT_EXT_WAKEUP
@@ -343,7 +344,7 @@ static int light_sleep(int argc, char **argv)
         ESP_LOGI(TAG, "Enabling wakeup on GPIO%d, wakeup on %s level",
                  io_num, level ? "HIGH" : "LOW");
 
-        ESP_ERROR_CHECK( gpio_wakeup_enable(io_num, level ? GPIO_INTR_HIGH_LEVEL : GPIO_INTR_LOW_LEVEL) );
+        ESP_ERROR_CHECK( gpio_wakeup_enable((gpio_num_t)io_num, level ? GPIO_INTR_HIGH_LEVEL : GPIO_INTR_LOW_LEVEL) );
     }
     if (io_count > 0) {
         ESP_ERROR_CHECK( esp_sleep_enable_gpio_wakeup() );
@@ -431,7 +432,7 @@ static int log_level(int argc, char **argv)
     const char* level_str = log_level_args.level->sval[0];
     esp_log_level_t level;
     size_t level_len = strlen(level_str);
-    for (level = ESP_LOG_NONE; level <= ESP_LOG_VERBOSE; level++) {
+    for (level = ESP_LOG_NONE; level <= ESP_LOG_VERBOSE; level = (esp_log_level_t)((int)level+1)) {
         if (memcmp(level_str, s_log_level_names[level], level_len) == 0) {
             break;
         }
@@ -447,6 +448,12 @@ static int log_level(int argc, char **argv)
         return 1;
     }
     esp_log_level_set(tag, level);
+    if(!strcmp(tag, "*") && level == ESP_LOG_NONE) {
+        Save::clear_log_levels();
+    } else if(level <= ESP_LOG_INFO) {
+        // do not allow saving debug or verbose persistently, this can cause reboot loops
+        Save::save_log_level(tag, level);
+    }
     return 0;
 }
 
@@ -458,7 +465,7 @@ static void register_log_level(void)
 
     const esp_console_cmd_t cmd = {
         .command = "log_level",
-        .help = "Set log level for all tags or a specific tag.",
+        .help = "Set log level for all tags or a specific tag. Persistent across reboots. Use 'log_level * none' to reset all saved levels.",
         .hint = NULL,
         .func = &log_level,
         .argtable = &log_level_args

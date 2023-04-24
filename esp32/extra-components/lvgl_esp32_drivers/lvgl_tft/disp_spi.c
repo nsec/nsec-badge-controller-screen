@@ -71,8 +71,8 @@ void disp_spi_add_device(spi_host_device_t host)
 
 void disp_spi_add_device_with_speed(spi_host_device_t host, int clock_speed_hz)
 {
-	printf("%s->Adding SPI device\n",TAG);
-	printf("%s->Clock speed: %dHz, mode: %d, CS pin: %d\n",TAG,clock_speed_hz, SPI_TFT_SPI_MODE, DISP_SPI_CS);
+	ESP_LOGV(TAG, "Adding SPI device");
+	ESP_LOGV(TAG, "Clock speed: %dHz, mode: %d, CS pin: %d", clock_speed_hz, SPI_TFT_SPI_MODE, DISP_SPI_CS);
 	spi_device_interface_config_t devcfg={
 		.clock_speed_hz = clock_speed_hz,
 		.mode = SPI_TFT_SPI_MODE,
@@ -91,7 +91,7 @@ void disp_spi_change_device_speed(int clock_speed_hz)
     if (clock_speed_hz <= 0) {
         clock_speed_hz = SPI_TFT_CLOCK_SPEED_HZ;
     }
-    printf("%s->Changing SPI device clock speed: %d\n",TAG, clock_speed_hz);
+    ESP_LOGV(TAG, "Changing SPI device clock speed: %d", clock_speed_hz);
     disp_spi_remove_device();
     disp_spi_add_device_with_speed(spi_host, clock_speed_hz);
 }

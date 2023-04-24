@@ -106,7 +106,7 @@ void ili9341_init(void)
 	vTaskDelay(100 / portTICK_PERIOD_MS);
 	gpio_set_level(ILI9341_RST, 1);
 	vTaskDelay(100 / portTICK_PERIOD_MS);
-	printf("%s->ili9341 Initialization....\n",TAG);
+	ESP_LOGV(TAG, "ili9341 Initialization....");
 	//Send all the commands
 	uint16_t cmd = 0;
 	while (ili_init_cmds[cmd].databytes!=0xff) {
@@ -219,7 +219,7 @@ static void ili9341_set_orientation(uint8_t orientation)
 {
 	// ESP_ASSERT(orientation < 4);
 	const char *orientation_str[] = {"PORTRAIT", "PORTRAIT_INVERTED", "LANDSCAPE", "LANDSCAPE_INVERTED"};
-	printf("%s->Display orientation: %s\n",TAG, orientation_str[orientation]);
+	ESP_LOGV(TAG, "Display orientation: %s", orientation_str[orientation]);
 #if defined CONFIG_LVGL_PREDEFINED_DISPLAY_M5STACK
 	uint8_t data[] = {0x68, 0x68, 0x08, 0x08};
 #elif defined (CONFIG_LVGL_PREDEFINED_DISPLAY_WROVER4)
@@ -227,7 +227,7 @@ static void ili9341_set_orientation(uint8_t orientation)
 #elif defined (CONFIG_LVGL_PREDEFINED_DISPLAY_NONE)
 	uint8_t data[] = {0x48, 0x88, 0x28, 0xE8};
 #endif
-	printf("%s->0x36 command value: 0x%02X\n",TAG, data[orientation]);
+	ESP_LOGV(TAG, "0x36 command value: 0x%02X", data[orientation]);
 	ili9341_send_cmd(0x36);
 	ili9341_send_data((void *) &data[orientation], 1);
 }

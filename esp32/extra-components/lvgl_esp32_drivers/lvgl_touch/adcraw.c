@@ -118,7 +118,7 @@ void adcraw_init(void)
 	gpio_set_drive_capability(yd, GPIO_DRIVE_CAP_3);
 	gpio_set_drive_capability(xl, GPIO_DRIVE_CAP_3);
 	gpio_set_drive_capability(xr, GPIO_DRIVE_CAP_3);
-	
+
 	ESP_ERROR_CHECK(esp_timer_create(&periodic_timer_args, &periodic_timer));
 	ESP_ERROR_CHECK(esp_timer_start_periodic(periodic_timer, 5 * 1000));        //5ms (expressed as microseconds)
 
@@ -162,7 +162,7 @@ static void setup_adc(gpio_num_t measure)
 	adc1_config_width(ADC_WIDTH_BIT_10);
 	adc1_config_channel_atten(channel, ADC_ATTEN_DB_11);
 }
-    
+
 static void insert_sort(int16_t array[], uint8_t size) {
 	uint8_t j;
 	int16_t save;
@@ -197,7 +197,7 @@ static void ad_touch_handler(void *arg)
 			samples[i] = adc1_get_raw(gpio_to_adc[xr]);
 		insert_sort(samples, NUMSAMPLES);
 		temp_x = samples[NUMSAMPLES / 2];
-		
+
 	case SET_Y :
 		setup_axis(xl, xr, yd, yu);
 		setup_adc(yd);
@@ -209,7 +209,7 @@ static void ad_touch_handler(void *arg)
 			samples[i] = adc1_get_raw(gpio_to_adc[yd]);
 		insert_sort(samples, NUMSAMPLES);
 		temp_y = samples[NUMSAMPLES / 2];
-		
+
 	case SET_Z1 :
 		setup_axis(yu, xl, yd, xr);
 		setup_adc(yd);
@@ -227,19 +227,19 @@ static void ad_touch_handler(void *arg)
 
 	case READ_Z2:
 		temp_z2 = adc1_get_raw(gpio_to_adc[xr]);
-		
+
 		if (temp_z1 < TOUCHSCREEN_RESISTIVE_PRESS_THRESHOLD) {
 #if CONFIG_LVGL_TOUCH_XY_SWAP
-			adcX = temp_y; 
-			adcY = temp_x; 
+			adcX = temp_y;
+			adcY = temp_x;
 #else
-			adcX = temp_x; 
-			adcY = temp_y; 
+			adcX = temp_x;
+			adcY = temp_y;
 #endif
 		}
 		else {
-			adcX = -1; 
-			adcY = -1; 
+			adcX = -1;
+			adcY = -1;
 		}
 		state = SET_X;
 		//printf("x: %d   y: %d   z: %d\n", adcX, adcY, temp_z1 - temp_z2);
@@ -266,7 +266,7 @@ static int16_t TouchGetX(void)
 	if (result > 0) {
 		result = (int16_t)((((int32_t)_trC * result) + _trD) >> TOUCHSCREEN_RESISTIVE_CALIBRATION_SCALE_FACTOR);
 	}
-	printf("x: %d\n", result);
+	//printf("x: %d\n", result);
 	return (result);
 }
 
@@ -287,7 +287,7 @@ static int16_t TouchGetY(void)
 	if (result > 0) {
 		result = (int16_t)((((int32_t)_trA * result) + (int32_t)_trB) >> TOUCHSCREEN_RESISTIVE_CALIBRATION_SCALE_FACTOR);
 	}
-	printf("y: %d\n", result);
+	//printf("y: %d\n", result);
 	return (result);
 }
 
