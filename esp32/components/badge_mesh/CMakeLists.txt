@@ -12,6 +12,7 @@ set(SOURCES
     "badge/mesh/ops/ui_message.cpp"
     "badge/mesh/ops/info.cpp"
     "badge/mesh/ops/neopixel.cpp"
+    "badge/mesh/ops/time.cpp"
 )
 
 if(CONFIG_BADGE_MESH_ADMIN_COMMANDS)

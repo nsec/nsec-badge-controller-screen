@@ -31,6 +31,8 @@ class BadgeMesh
     static TaskHandle_t _taskHandle;
     SemaphoreHandle_t _bt_semaphore;
 
+    bool networkTimeValid;
+
   public:
     BadgeMesh(BadgeMesh const &) = delete;
     void operator=(BadgeMesh const &) = delete;
@@ -42,6 +44,12 @@ class BadgeMesh
     void taskHandler();
     esp_err_t clientSend(uint16_t dst_addr, uint32_t op, uint8_t *msg, unsigned int length, bool needsResponse = false, uint8_t ttl = DEFAULT_TTL);
     esp_err_t serverSend(uint16_t dst_addr, uint32_t op, uint8_t *msg, unsigned int length);
+
+    bool networkTimeIsValid();
+    esp_err_t networkTimeSet(time_t now);
+    esp_err_t networkTimeGet(time_t *now);
+    esp_err_t networkTimeRequest();
+
 };
 
 esp_err_t mesh_client_send(uint16_t dst_addr, uint32_t op, uint8_t *msg, unsigned int length, bool needsResponse);

@@ -28,6 +28,8 @@ extern "C" void app_main(void) {
     initialize_nvs();
     fflush(stdout);
 
+    setenv("TZ", "UTC+4", 1);
+
     Save::load_save();
     Save::load_and_set_log_levels();
 

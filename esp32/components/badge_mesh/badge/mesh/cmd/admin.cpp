@@ -12,6 +12,7 @@
 #include "driver/uart.h"
 
 #include "console.h"
+#include "badge/mesh/main.h"
 #include "badge/mesh/config.h"
 #include "badge/mesh/cmd/admin.h"
 #include "badge/mesh/network.h"
@@ -23,10 +24,11 @@
 #include "badge/mesh/ops/ui_message.h"
 #include "badge/mesh/ops/info.h"
 #include "badge/mesh/ops/neopixel.h"
+#include "badge/mesh/ops/time.h"
 
 #if CONFIG_BADGE_MESH_ADMIN_COMMANDS
 
-static const char *TAG = "cmd_mesh_admin";
+static const char *TAG = "badge/mesh";
 #define MESH_ADMIN_CMD "mesh-admin"
 
 static int show_cmd(int argc, char **argv);
@@ -37,6 +39,7 @@ static int set_name_cmd(int argc, char **argv);
 static int ui_message_cmd(int argc, char **argv);
 static int info_cmd(int argc, char **argv);
 static int neopixel_cmd(int argc, char **argv);
+static int time_cmd(int argc, char **argv);
 
 static struct {
     struct arg_str *address;
@@ -55,6 +58,11 @@ static struct {
     struct arg_int *ttl;
     struct arg_end *end;
 } neopixel_args;
+
+static struct {
+    struct arg_int *now;
+    struct arg_end *end;
+} time_args;
 
 /*
     Kind of a hack to get sub-enus instead of all commands at the top level.
@@ -109,6 +117,13 @@ const esp_console_cmd_t subcommands[] = {
         .hint = NULL,
         .func = &neopixel_cmd,
         .argtable = &neopixel_args,
+    },
+    {
+        .command = "set-time",
+        .help = "Set network time for this device and propagate to all other devices",
+        .hint = NULL,
+        .func = &time_cmd,
+        .argtable = &time_args,
     },
 };
 
@@ -331,6 +346,27 @@ static int neopixel_cmd(int argc, char **argv)
     return ESP_OK;
 }
 
+static int time_cmd(int argc, char **argv)
+{
+    int nerrors = arg_parse(argc, argv, (void **) &time_args);
+    if (nerrors != 0) {
+        arg_print_errors(stderr, time_args.end, argv[0]);
+        return 1;
+    }
+
+    int now = time_args.now->ival[0];
+    BadgeMesh::getInstance().networkTimeSet(now);
+
+    // for(int i=0; i<10; i++) {
+    //     uint16_t addr = i | SCREEN_ADDRESS_RANGE;
+    //     printf("Sending time to table=%u node=0x%04x\n", i, addr);
+    //     send_time_response(addr, time(NULL));
+    //     vTaskDelay(1000 / portTICK_PERIOD_MS);
+    // }
+
+    return ESP_OK;
+}
+
 static int mesh_admin_cmd(int argc, char **argv)
 {
     if(argc < 2) {
@@ -374,6 +410,9 @@ void register_mesh_admin_commands(void)
     neopixel_args.blue = arg_int0("b", "blue", "<int>", "blue color value (0-255)");
     neopixel_args.ttl = arg_int0(NULL, "ttl", "<int>", "number of mesh hops before message is no longer relayed (default " TO_LITERAL(DEFAULT_TTL) ")");
     neopixel_args.end = arg_end(2);
+
+    time_args.now = arg_int1(NULL, NULL, "<now>", "Current number of second since epoch."); // python3 -c 'import time; print(int(time.time()))'
+    time_args.end = arg_end(2);
 
     return;
 }
