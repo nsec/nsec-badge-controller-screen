@@ -14,10 +14,10 @@ static const char *TAG="save";
 #define LOG_NAMESPACE "logs"
 
 SaveData Save::save_data = {
-    .neopixel_brightness = 25,
-    .neopixel_mode = 0,
+    .neopixel_brightness = 255,
+    .neopixel_mode = 5,
     .neopixel_is_on = true,
-    .neopixel_color = 0xff00ff,
+    .neopixel_color = 0xffffff,
 };
 
 esp_err_t Save::write_save()

@@ -1,4 +1,4 @@
-idf_component_register(SRCS "console.cpp"
+idf_component_register(SRCS "console.cpp" "cmd_debug.cpp" "cmd_neopixel.cpp"
                        INCLUDE_DIRS "."
-                       REQUIRES console driver fatfs cmd_nvs cmd_system buzzer badge_mesh
+                       REQUIRES console driver fatfs cmd_nvs cmd_system buzzer badge_mesh save neopixel
 )

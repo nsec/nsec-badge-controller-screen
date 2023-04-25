@@ -9,6 +9,8 @@ struct SaveData {
     uint8_t neopixel_mode;
     bool neopixel_is_on;
     int neopixel_color;
+    bool debug_enabled;
+    uint16_t debug_pin;
 };
 
 class Save

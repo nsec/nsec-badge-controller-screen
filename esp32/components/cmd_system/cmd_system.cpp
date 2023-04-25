@@ -465,7 +465,9 @@ static void register_log_level(void)
 
     const esp_console_cmd_t cmd = {
         .command = "log_level",
-        .help = "Set log level for all tags or a specific tag. Persistent across reboots. Use 'log_level * none' to reset all saved levels.",
+        .help = "Set log level for all tags or a specific tag. "\
+            "Persistent across reboots. Use 'log_level * none' to reset all saved levels. " \
+            "Levels other than debug/verbose persist across restarts.",
         .hint = NULL,
         .func = &log_level,
         .argtable = &log_level_args

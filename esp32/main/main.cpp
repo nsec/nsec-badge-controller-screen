@@ -28,14 +28,13 @@ extern "C" void app_main(void) {
     initialize_nvs();
     fflush(stdout);
 
+    Save::load_save();
     Save::load_and_set_log_levels();
 
+    /* will only show once log_level is saved and board is restarted */
+    ESP_LOGI("flag", "🤔 " LOG_COLOR("38;5;232;48;5;232") "FLAG-{378792f89d19dfe064b5fa36b5c54971}" LOG_RESET_COLOR);
+
 	NeoPixel::getInstance().init();
-    NeoPixel::getInstance().stop();
-	NeoPixel::getInstance().setColor(CRGB::Red);
-    NeoPixel::getInstance().setBrightness(255);
-    NeoPixel::getInstance().setMode(FX_MODE_RANDOM_COLOR);
-    NeoPixel::getInstance().start();
 
     Buzzer::getInstance().init();
     Buzzer::getInstance().play(Buzzer::Sounds::Mode1);
