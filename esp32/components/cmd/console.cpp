@@ -103,11 +103,11 @@ void console_task(void *args)
 
     /* register commands */
     esp_console_register_help_command();
+    register_provision_commands();
     register_debug_commands();
 
     if(Save::save_data.debug_enabled) {
         register_system();
-        register_provision_commands();
         register_neopixel();
 
 #if CONFIG_BADGE_MESH_ADMIN_COMMANDS

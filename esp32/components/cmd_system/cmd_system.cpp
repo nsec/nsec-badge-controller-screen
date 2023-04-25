@@ -64,7 +64,7 @@ void register_system_sleep(void)
 void register_system(void)
 {
     register_system_common();
-    register_system_sleep();
+    //register_system_sleep();
 }
 
 /* 'version' command */
