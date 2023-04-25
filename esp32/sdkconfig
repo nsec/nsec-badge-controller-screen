@@ -2193,7 +2193,7 @@ CONFIG_LVGL_DISP_PIN_SCL=4
 #
 # Badge Mesh
 #
-CONFIG_BADGE_MESH_ADMIN_COMMANDS=y
+# CONFIG_BADGE_MESH_ADMIN_COMMANDS is not set
 # end of Badge Mesh
 # end of Component config
 

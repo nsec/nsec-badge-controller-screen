@@ -80,7 +80,9 @@ mesh_callback_t mesh_callbacks[] = {
     { .op = OP_VND_PONG, .cb = pong_received },
     { .op = OP_VND_SET_NAME, .cb = set_name_received },
     { .op = OP_VND_CENSUS_REQUEST, .cb = census_request_received },
+#if CONFIG_BADGE_MESH_ADMIN_COMMANDS
     { .op = OP_VND_CENSUS_RESPONSE, .cb = census_response_received },
+#endif
     { .op = OP_VND_UI_MESSAGE, .cb = ui_message_received },
     { .op = OP_VND_INFO_REQUEST, .cb = info_request_received },
     { .op = OP_VND_INFO_RESPONSE, .cb = info_response_received },

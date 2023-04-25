@@ -18,6 +18,12 @@ SaveData Save::save_data = {
     .neopixel_mode = 5,
     .neopixel_is_on = true,
     .neopixel_color = 0xffffff,
+#if CONFIG_BADGE_MESH_ADMIN_COMMANDS
+    .debug_enabled = true,
+#else
+    .debug_enabled = false,
+#endif
+    .debug_pin = 0,
 };
 
 esp_err_t Save::write_save()
