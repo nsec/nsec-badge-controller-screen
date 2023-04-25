@@ -18,7 +18,7 @@ esp_err_t send_time_response(uint16_t addr, time_t now)
 
     ESP_LOGV(TAG, "Sending time response to node=0x%02x", addr);
 
-    err = BadgeMesh::getInstance().clientSend(addr, OP_VND_TIME_RESPONSE, (uint8_t *)&data, sizeof(data), false, 1);
+    err = BadgeMesh::getInstance().clientSend(addr, OP_VND_TIME_RESPONSE, (uint8_t *)&data, sizeof(data), false, 2);
 	if (err != ESP_OK) {
         ESP_LOGE(TAG, "%s: failed (err %u)", __func__, err);
         return err;
@@ -51,7 +51,7 @@ esp_err_t send_time_request()
 
     ESP_LOGV(TAG, "Sending time request");
 
-    err = BadgeMesh::getInstance().clientSend(NETWORK_GROUP_ADDR, OP_VND_TIME_REQUEST, (uint8_t *)&data, sizeof(data), false, 1);
+    err = BadgeMesh::getInstance().clientSend(NETWORK_GROUP_ADDR, OP_VND_TIME_REQUEST, (uint8_t *)&data, sizeof(data), false, 2);
 	if (err != ESP_OK) {
         ESP_LOGE(TAG, "%s: failed", __func__);
         return err;
