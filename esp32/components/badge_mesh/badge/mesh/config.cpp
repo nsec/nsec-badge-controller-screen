@@ -389,6 +389,9 @@ esp_err_t mesh_configure_esp_ble_mesh()
         // will not be able to communicate (packets won't be relayed).
         save_node_addr(badge_network_info.unicast_addr);
     }
+    else {
+        random_address = !(badge_network_info.unicast_addr > SCREEN_ADDRESS_RANGE && badge_network_info.unicast_addr < (SCREEN_ADDRESS_RANGE + 0xff));
+    }
 
     memset(badge_network_info.name, 0, sizeof(badge_network_info.name));
     name_length = sizeof(badge_network_info.name);
