@@ -303,7 +303,7 @@ static int neopixel_cmd(int argc, char **argv)
     int ttl = neopixel_args.ttl->count == 1 ? neopixel_args.ttl->ival[0] : DEFAULT_TTL;
 
     if(neopixel_args.color->count == 1) {
-        const char *ptr = neopixel_args.color->sval[1];
+        const char *ptr = neopixel_args.color->sval[0];
         if(strlen(ptr) > 2 && ptr[0] == '0' && ptr[1] == 'x')
             ptr += 2;
         if (sscanf(ptr, "%08lx", &color) != 1) {
