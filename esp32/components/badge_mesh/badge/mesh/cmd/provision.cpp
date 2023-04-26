@@ -37,7 +37,7 @@ static int provision_cmd(int argc, char **argv)
 void register_provision_commands(void)
 {
     uint16_t addr;
-    if(load_node_addr(&addr) == ESP_OK) {
+    if(load_node_addr(&addr) == ESP_OK && addr > SCREEN_ADDRESS_RANGE && addr < (SCREEN_ADDRESS_RANGE + 0xff)) {
         ESP_LOGV(TAG, "Node address permanently set to 0x%04x", addr);
         return;
     }

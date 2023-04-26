@@ -382,6 +382,12 @@ esp_err_t mesh_configure_esp_ble_mesh()
             /* Make sure it's a unicast address (highest bit unset) */
             badge_network_info.unicast_addr &= ~0x8000;
         } while(badge_network_info.unicast_addr >= SCREEN_ADDRESS_RANGE);
+
+        // we must persist the unicast address across device restarts,
+        // because there is a finite number of unique addresses that can be stored
+        // in each node replay list. once the list space is exhausted new nodes
+        // will not be able to communicate (packets won't be relayed).
+        save_node_addr(badge_network_info.unicast_addr);
     }
 
     memset(badge_network_info.name, 0, sizeof(badge_network_info.name));
