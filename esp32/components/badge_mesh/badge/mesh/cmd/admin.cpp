@@ -295,8 +295,8 @@ static int neopixel_cmd(int argc, char **argv)
         return 1;
     }
 
-    bool loop_forever = neopixel_args.time->count == 0;
-    uint16_t time = loop_forever ? 60 : neopixel_args.time->ival[0];
+    uint16_t time = neopixel_args.time->count == 0 ? 60 : neopixel_args.time->ival[0];
+    if(time < 10) time = 10;
     uint8_t mode = neopixel_args.mode->ival[0];
     uint8_t brightness = neopixel_args.brightness->count == 1 ? neopixel_args.brightness->ival[0] : 128;
     uint32_t color;
@@ -323,25 +323,21 @@ static int neopixel_cmd(int argc, char **argv)
         return ESP_FAIL;
     }
 
-    if(loop_forever) {
-        printf("Looping forever, press any key to interrupt");
-        fflush(stdout);
-    }
+    printf("Looping forever, press any key to interrupt");
+    fflush(stdout);
 
     do {
         send_neopixel_set(time, mode, brightness, color, NEOPIXEL_FLAG_HIGH_PRIORITY, ttl);
 
-        if(loop_forever) {
-            uint8_t chr;
-            if(uart_read_bytes(CONFIG_ESP_CONSOLE_UART_NUM, &chr, 1, 10000 / portTICK_PERIOD_MS) == 1) {
-                printf("\n");
-                break;
-            }
-
-            printf(".");
-            fflush(stdout);
+        uint8_t chr;
+        if(uart_read_bytes(CONFIG_ESP_CONSOLE_UART_NUM, &chr, 1, ((time - 2) * 1000) / portTICK_PERIOD_MS) == 1) {
+            printf("\n");
+            break;
         }
-    } while(loop_forever);
+
+        printf(".");
+        fflush(stdout);
+    } while(true);
 
     return ESP_OK;
 }
@@ -356,13 +352,6 @@ static int time_cmd(int argc, char **argv)
 
     int now = time_args.now->ival[0];
     BadgeMesh::getInstance().networkTimeSet(now);
-
-    // for(int i=0; i<10; i++) {
-    //     uint16_t addr = i | SCREEN_ADDRESS_RANGE;
-    //     printf("Sending time to table=%u node=0x%04x\n", i, addr);
-    //     send_time_response(addr, time(NULL));
-    //     vTaskDelay(1000 / portTICK_PERIOD_MS);
-    // }
 
     return ESP_OK;
 }
