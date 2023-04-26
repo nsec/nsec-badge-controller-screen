@@ -24,6 +24,10 @@ static const char *TAG = "badge/mesh";
 #define MESH_NVS_NAMESPACE "badge-mesh"
 #define MESH_NVS_NODE_NAME_KEY "node-name"
 #define MESH_NVS_NODE_ADDR_KEY "node-addr"
+#define MESH_NVS_SEQUENCE_NUMBER "sequence-number"
+#define SEQUENCE_NUMBER_PERSIST_INCREMENT 10
+
+static uint32_t last_saved_sequence_number = 0;
 
 badge_network_info_t badge_network_info = {
     .net_key = {
@@ -251,6 +255,88 @@ esp_err_t load_node_addr(uint16_t *addr)
     } else if (err != ESP_OK) {
 		ESP_LOGE(TAG, "%s: failed to get u16 (err %04x)", __func__, err);
         return err;
+    }
+
+    // Close NVS namespace
+    nvs_close(handle);
+
+    return ESP_OK;
+}
+
+esp_err_t mesh_sequence_number_changed()
+{
+    nvs_handle_t handle;
+    esp_err_t err;
+
+    if (bt_mesh.seq < (last_saved_sequence_number + SEQUENCE_NUMBER_PERSIST_INCREMENT)) {
+        // only save every N sequence number to further decrease the wear on nvs.
+        return ESP_OK;
+    }
+
+    ESP_LOGV(TAG, "Saving new sequence number=%lu previous=%lu\n", bt_mesh.seq, last_saved_sequence_number);
+
+    // Open NVS namespace
+    err = nvs_open(MESH_NVS_NAMESPACE, NVS_READWRITE, &handle);
+    if (err != ESP_OK) {
+		ESP_LOGE(TAG, "%s: failed to open nvs (err %d)", __func__, err);
+        return err;
+    }
+
+    // Write data to NVS
+    err = nvs_set_u32(handle, MESH_NVS_SEQUENCE_NUMBER, bt_mesh.seq);
+    if (err != ESP_OK) {
+		ESP_LOGE(TAG, "%s: failed to set str (err %d)", __func__, err);
+        return err;
+    }
+
+    // Commit changes to NVS
+    err = nvs_commit(handle);
+    if (err != ESP_OK) {
+		ESP_LOGE(TAG, "%s: failed to commit (err %d)", __func__, err);
+        return err;
+    }
+
+    last_saved_sequence_number = bt_mesh.seq;
+
+    // Close NVS namespace
+    nvs_close(handle);
+
+    return ESP_OK;
+}
+
+/*
+    Write stored node address into '*addr'.
+*/
+esp_err_t mesh_load_sequence_number()
+{
+    nvs_handle_t handle;
+    esp_err_t err;
+
+    err = nvs_open(MESH_NVS_NAMESPACE, NVS_READONLY, &handle);
+    if(err == ESP_ERR_NVS_NOT_FOUND) {
+        // Partition does not exist, and it is not created since we asked for READONLY.
+        // This is expected before name is actually set, we can silently return an error.
+        return ESP_FAIL;
+    } else if (err != ESP_OK) {
+		ESP_LOGE(TAG, "%s: failed to open nvs (err %04x)", __func__, err);
+        return err;
+    }
+
+    // Read data from NVS
+    err = nvs_get_u32(handle, MESH_NVS_SEQUENCE_NUMBER, &last_saved_sequence_number);
+    if(err == ESP_ERR_NVS_NOT_FOUND) {
+        // Key does not exist, and it is not created since we asked for READONLY.
+        // This is expected before key is actually set, we can silently return an error.
+        return ESP_FAIL;
+    } else if (err != ESP_OK) {
+		ESP_LOGE(TAG, "%s: failed to get u16 (err %04x)", __func__, err);
+        return err;
+    }
+
+    bt_mesh.seq = last_saved_sequence_number;
+    if (bt_mesh.seq != 0) {
+        // increment by the number of possible sequence numbers we didn't save.
+        bt_mesh.seq += SEQUENCE_NUMBER_PERSIST_INCREMENT;
     }
 
     // Close NVS namespace

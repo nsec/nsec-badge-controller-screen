@@ -37,6 +37,13 @@ esp_err_t mesh_config_name_updated(char *name);
 esp_err_t save_node_addr(uint16_t addr);
 esp_err_t load_node_addr(uint16_t *addr);
 
+/*
+    mesh_sequence_number_changed() must be called every time a new message is
+    sent, for the purpose of storing the newest sequence number in persistent storage.
+*/
+esp_err_t mesh_load_sequence_number();
+esp_err_t mesh_sequence_number_changed();
+
 #ifdef __cplusplus
 }
 #endif
