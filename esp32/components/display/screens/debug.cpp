@@ -53,14 +53,14 @@ void screen_debug_init()
 
 void screen_debug_loop()
 {
-    struct tm *tm;
+    struct tm tm;
     time_t t;
     char buf[32];
 
     if(BadgeMesh::getInstance().networkTimeIsValid()) {
-        t = time(NULL);
-        tm = localtime(&t);
-        snprintf((char *)&buf, sizeof(buf), "%02d:%02d", tm->tm_hour, tm->tm_min);
+        BadgeMesh::getInstance().networkTimeGet(&t);
+        gmtime_r(&t, &tm);
+        snprintf((char *)&buf, sizeof(buf), "%02d:%02d", tm.tm_hour, tm.tm_min);
         lv_label_set_text(time_label, buf);
     }
 

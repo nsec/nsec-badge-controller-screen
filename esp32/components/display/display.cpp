@@ -181,7 +181,6 @@ void Display::taskHandler()
                 }
             }
 
-
             lv_task_handler();
             xSemaphoreGive(xGuiSemaphore);
         }
