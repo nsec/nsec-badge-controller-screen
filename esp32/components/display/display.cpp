@@ -26,6 +26,7 @@
 #include "screens/splash.h"
 #include "screens/debug.h"
 #include "screens/assistant.h"
+#include "lv_utils.h"
 
 static const char *TAG = "display";
 #define LV_TICK_PERIOD_MS 10
@@ -145,6 +146,8 @@ void Display::taskHandler()
         ESP_ERROR_CHECK(esp_timer_create(&periodic_timer_args, &periodic_timer));
         ESP_ERROR_CHECK(esp_timer_start_periodic(periodic_timer, LV_TICK_PERIOD_MS * 1000));
 
+        util_styles_init();
+
         lv_obj_clean(lv_scr_act());
         screen_splash_init();
         screen_splash_set_string(0);
@@ -160,8 +163,6 @@ void Display::taskHandler()
 
                 if(elapsed_time_ms > (SPLASH_WAIT_SECONDS * 1000)) {
                     if(splash_cur > screen_splash_string_count()) {
-                        lv_obj_clean(lv_scr_act());
-
                         if(debug) {
                             screen_debug_init();
                         } else {

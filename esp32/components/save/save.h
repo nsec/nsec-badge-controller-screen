@@ -4,6 +4,10 @@
 #include "esp_log.h"
 #include <stdint.h>
 
+#include "lvgl/lvgl.h"
+
+#include "screens/debug.h"
+
 struct SaveData {
     uint8_t neopixel_brightness;
     uint8_t neopixel_mode;
@@ -11,6 +15,11 @@ struct SaveData {
     int neopixel_color;
     bool debug_enabled;
     uint16_t debug_pin;
+
+    bool debug_feature_enabled[debug_tab::count];
+    uint8_t mood_brightness;
+    uint8_t mood_mode;
+    lv_color_t mood_color;
 };
 
 class Save

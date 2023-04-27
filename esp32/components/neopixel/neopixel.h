@@ -24,6 +24,19 @@ class NeoPixel
         return instance;
     }
 
+    constexpr static const uint8_t unlocked_mode[10] = {
+        FX_MODE_BREATH,
+        FX_MODE_RAINBOW,
+        FX_MODE_RANDOM_COLOR,
+        FX_MODE_CHASE_RAINBOW,
+        FX_MODE_RAIN,
+        FX_MODE_PRIDE_2015,
+        FX_MODE_COLORWAVES,
+        FX_MODE_SPARKLE,
+        FX_MODE_RUNNING_COLOR,
+        FX_MODE_RAINBOW_CYCLE
+    };
+
   private:
     NeoPixel()
     {

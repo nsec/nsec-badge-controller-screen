@@ -24,6 +24,15 @@ SaveData Save::save_data = {
     .debug_enabled = false,
 #endif
     .debug_pin = 0,
+
+    .mood_brightness = 64,
+    .mood_mode = 0,
+    .mood_color = {
+        .ch = {
+            .red = 0b11111,
+            .blue = 0b11111,
+        },
+    },
 };
 
 esp_err_t Save::write_save()

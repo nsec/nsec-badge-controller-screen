@@ -23,18 +23,15 @@
 
 #include "badge/mesh/main.h"
 #include "screens/assistant.h"
+#include "lv_utils.h"
 
 static const char *TAG = "display";
 
-static lv_style_t style_box;
 static lv_obj_t *time_label;
 
 void screen_assistant_init()
 {
-    lv_style_init(&style_box);
-    lv_style_set_value_align(&style_box, LV_STATE_DEFAULT, LV_ALIGN_OUT_TOP_LEFT);
-    lv_style_set_value_ofs_y(&style_box, LV_STATE_DEFAULT, - LV_DPX(10));
-    lv_style_set_margin_top(&style_box, LV_STATE_DEFAULT, LV_DPX(30));
+    lv_obj_clean(lv_scr_act());
 
     lv_obj_t *cont = lv_cont_create(lv_scr_act(), NULL);
     lv_obj_set_auto_realign(cont, true);                    /*Auto realign when the size changes*/
