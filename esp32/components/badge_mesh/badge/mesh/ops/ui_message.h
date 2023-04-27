@@ -14,8 +14,6 @@ extern "C" {
 #define OP_UI_MESSAGE                  0x05 /* must be unique */
 #define OP_VND_UI_MESSAGE              ESP_BLE_MESH_MODEL_OP_3(OP_UI_MESSAGE, NSEC_COMPANY_ID)
 
-#define MESH_UI_MESSAGE_MAX_LENGTH 255
-
 /*
     Send the "ui message" command to a node.
 
