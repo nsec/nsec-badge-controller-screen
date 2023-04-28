@@ -51,11 +51,12 @@ static struct {
     struct arg_int *time;
     struct arg_int *mode;
     struct arg_int *brightness;
-    struct arg_str *color;
+    struct arg_int *color;
     struct arg_int *red;
     struct arg_int *green;
     struct arg_int *blue;
     struct arg_int *ttl;
+    struct arg_lit *all_modes;
     struct arg_end *end;
 } neopixel_args;
 
@@ -295,39 +296,35 @@ static int neopixel_cmd(int argc, char **argv)
         return 1;
     }
 
-    uint16_t time = neopixel_args.time->count == 0 ? 60 : neopixel_args.time->ival[0];
+    uint16_t time = neopixel_args.time->count == 0 ? 10 : neopixel_args.time->ival[0];
     if(time < 10) time = 10;
     uint8_t mode = neopixel_args.mode->ival[0];
     uint8_t brightness = neopixel_args.brightness->count == 1 ? neopixel_args.brightness->ival[0] : 128;
-    uint32_t color;
-    int ttl = neopixel_args.ttl->count == 1 ? neopixel_args.ttl->ival[0] : DEFAULT_TTL;
+    uint32_t color = neopixel_args.color->count == 1 ? neopixel_args.color->ival[0] : 0;
+    int ttl = neopixel_args.ttl->count == 1 ? neopixel_args.ttl->ival[0] : 1;
+    bool all_modes = neopixel_args.all_modes->count == 1;
 
-    if(neopixel_args.color->count == 1) {
-        const char *ptr = neopixel_args.color->sval[0];
-        if(strlen(ptr) > 2 && ptr[0] == '0' && ptr[1] == 'x')
-            ptr += 2;
-        if (sscanf(ptr, "%08lx", &color) != 1) {
-            printf("--color not valid (format is 0xffffff)\n");
-            return ESP_FAIL;
-        }
-
+    if(color) {
         color &= 0xffffff;
-    } else if(neopixel_args.red->count == 1 || neopixel_args.green->count == 1 || neopixel_args.blue->count == 1) {
+    } else if (neopixel_args.red->count == 1 || neopixel_args.green->count == 1 || neopixel_args.blue->count == 1) {
         int r = neopixel_args.red->count == 1 ? neopixel_args.red->ival[0] : 0;
         int g = neopixel_args.green->count == 1 ? neopixel_args.green->ival[0] : 0;
         int b = neopixel_args.blue->count == 1 ? neopixel_args.blue->ival[0] : 0;
 
-        color = (r << 16) | (g << 8) | b;
+        color = ((r & 0xff) << 16) | ((g & 0xff) << 8) | (b & 0xff);
     } else {
         printf("at least one of --color, --red, --green or --blue must be specified\n");
         return ESP_FAIL;
     }
 
-    printf("Looping forever, press any key to interrupt");
+    printf("\nLooping forever, press any key to interrupt");
     fflush(stdout);
 
     do {
-        send_neopixel_set(time, mode, brightness, color, NEOPIXEL_FLAG_HIGH_PRIORITY, ttl);
+        int flags = NEOPIXEL_FLAG_HIGH_PRIORITY;
+        if(all_modes)
+            flags |= NEOPIXEL_FLAG_UNLOCK_ALL_MODES;
+        send_neopixel_set(time, mode, brightness, color, flags, ttl);
 
         uint8_t chr;
         if(uart_read_bytes(CONFIG_ESP_CONSOLE_UART_NUM, &chr, 1, ((time - 2) * 1000) / portTICK_PERIOD_MS) == 1) {
@@ -393,12 +390,13 @@ void register_mesh_admin_commands(void)
     neopixel_args.time = arg_int0("t", "time", "<int>", "number of seconds to display the pattern for (loops until interrupted unless specified)");
     neopixel_args.mode = arg_int1("m", "mode", "<int>", "number representing the mode to set (badge must support it)");
     neopixel_args.brightness = arg_int0(NULL, "brightness", "<int>", "brightness value (0-255, default 128)");
-    neopixel_args.color = arg_str0("c", "color", "0xrrggbb", "hex color value (mutually exclusive with red/green/blue options)");
+    neopixel_args.color = arg_int0("c", "color", "0xrrggbb", "hex color value (mutually exclusive with red/green/blue options)");
     neopixel_args.red = arg_int0("r", "red", "<int>", "red color value (0-255)");
     neopixel_args.green = arg_int0("g", "green", "<int>", "green color value (0-255)");
     neopixel_args.blue = arg_int0("b", "blue", "<int>", "blue color value (0-255)");
-    neopixel_args.ttl = arg_int0(NULL, "ttl", "<int>", "number of mesh hops before message is no longer relayed (default " TO_LITERAL(DEFAULT_TTL) ")");
-    neopixel_args.end = arg_end(2);
+    neopixel_args.ttl = arg_int0(NULL, "ttl", "<int>", "number of mesh hops before message is no longer relayed (default 1 hop)");
+    neopixel_args.all_modes = arg_lit0("a", "all", "unlock all modes, not just those unlocked by default.");
+    neopixel_args.end = arg_end(15);
 
     time_args.now = arg_int1(NULL, NULL, "<now>", "Current number of second since epoch."); // python3 -c 'import time; print(int(time.time()))'
     time_args.end = arg_end(2);
