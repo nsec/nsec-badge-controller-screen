@@ -19,10 +19,10 @@ with serial.Serial(port, 115200, timeout=3) as ser:
 
 	# set current time, wait for it to be sent to all nodes
 	now = int(time.time()) - (60 * 60 * 4)
-	ser.write(b"log_level BLE_MESH info\n")
-	print(ser.readline())
-	ser.write(b"log_level badge/mesh verbose\n")
-	print(ser.readline())
+	# ser.write(b"log_level BLE_MESH info\n")
+	# print(ser.readline())
+	# ser.write(b"log_level badge/mesh verbose\n")
+	# print(ser.readline())
 	ser.write(b"mesh-admin set-time %u\n" % now)
 	print(ser.readline())
 
