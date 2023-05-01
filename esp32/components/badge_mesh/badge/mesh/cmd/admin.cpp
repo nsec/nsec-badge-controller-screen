@@ -40,12 +40,18 @@ static int ui_message_cmd(int argc, char **argv);
 static int info_cmd(int argc, char **argv);
 static int neopixel_cmd(int argc, char **argv);
 static int time_cmd(int argc, char **argv);
+static int flag_request_cmd(int argc, char **argv);
 
 static struct {
     struct arg_str *address;
     struct arg_str *name;
     struct arg_end *end;
 } set_name_args;
+
+static struct {
+    struct arg_int *address;
+    struct arg_end *end;
+} flag_request_args;
 
 static struct {
     struct arg_int *time;
@@ -125,6 +131,13 @@ const esp_console_cmd_t subcommands[] = {
         .hint = NULL,
         .func = &time_cmd,
         .argtable = &time_args,
+    },
+    {
+        .command = "test-flag-request",
+        .help = "Send flag request to a node, just for testing that the command works",
+        .hint = NULL,
+        .func = &flag_request_cmd,
+        .argtable = &flag_request_args,
     },
 };
 
@@ -353,6 +366,23 @@ static int time_cmd(int argc, char **argv)
     return ESP_OK;
 }
 
+static int flag_request_cmd(int argc, char **argv)
+{
+    int nerrors = arg_parse(argc, argv, (void **) &flag_request_args);
+    if (nerrors != 0) {
+        arg_print_errors(stderr, flag_request_args.end, argv[0]);
+        return 1;
+    }
+
+    uint16_t address = flag_request_args.address->sval[0];
+    send_flag_request(address);
+
+    /* wait for a few seconds for a response */
+    vTaskDelay(3000 / portTICK_PERIOD_MS);
+
+    return ESP_OK;
+}
+
 static int mesh_admin_cmd(int argc, char **argv)
 {
     if(argc < 2) {
@@ -386,6 +416,9 @@ void register_mesh_admin_commands(void)
     set_name_args.address = arg_str1(NULL, NULL, "<addr>", "address of the node (format: 0xffff)");
     set_name_args.name = arg_str1(NULL, NULL, "<name>", "new name (maximum " TO_LITERAL(BADGE_NAME_LEN) " characters)");
     set_name_args.end = arg_end(2);
+
+    flag_request_args.address = arg_int1(NULL, NULL, "<addr>", "address of the node (format: 0xffff)");
+    flag_request_args.end = arg_end(2);
 
     neopixel_args.time = arg_int0("t", "time", "<int>", "number of seconds to display the pattern for (loops until interrupted unless specified)");
     neopixel_args.mode = arg_int1("m", "mode", "<int>", "number representing the mode to set (badge must support it)");
