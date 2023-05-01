@@ -455,6 +455,7 @@ static lv_obj_t *tab_chat_init(debug_tabs_t *tab)
     lv_label_set_long_mode(label, LV_LABEL_LONG_BREAK);
     lv_obj_align(label, NULL, LV_ALIGN_IN_LEFT_MID, 0, 0);
     lv_obj_set_width(label, 270);
+    lv_obj_set_style_local_text_font(label, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, &lv_font_montserrat_12);
 
     return parent;
 }
