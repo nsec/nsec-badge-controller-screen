@@ -28,6 +28,10 @@ enum {
     addr,
     seq_num,
     network_time,
+    company_id,
+    group_addr,
+    net_idx,
+    app_idx,
 
     count // keep last
 };

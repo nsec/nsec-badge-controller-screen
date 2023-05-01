@@ -23,6 +23,7 @@ typedef esp_err_t (* mesh_message_received_cb_t)(
 typedef struct mesh_callback {
     uint32_t op;
     mesh_message_received_cb_t cb;
+    const char *name;
 } mesh_callback_t;
 
 extern mesh_callback_t mesh_callbacks[];

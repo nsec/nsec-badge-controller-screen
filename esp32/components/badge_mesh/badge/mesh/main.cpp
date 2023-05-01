@@ -6,6 +6,7 @@
 #include "badge/mesh/main.h"
 #include "badge/mesh/host.h"
 #include "badge/mesh/ops/time.h"
+#include "badge/mesh/ops/partyline.h"
 
 static const char *TAG = "badge/mesh";
 
@@ -159,6 +160,8 @@ void BadgeMesh::taskHandler()
         } else {
             ESP_LOGV(TAG, "This node is provisioned correctly");
         }
+
+        partyline_history_init();
 
         xSemaphoreGive(_bt_semaphore);
     }

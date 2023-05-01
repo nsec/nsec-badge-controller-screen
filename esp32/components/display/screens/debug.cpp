@@ -10,11 +10,14 @@
 #include "lvgl_helpers.h"
 
 #include "badge/mesh/main.h"
+#include "badge/mesh/ops.h"
 #include "screens/debug.h"
 #include "lv_utils.h"
 #include "save.h"
 #include "neopixel.h"
 #include "badge/mesh/ops/neopixel.h"
+#include "badge/mesh/ops/set_name.h"
+#include "badge/mesh/ops/partyline.h"
 
 static const char *TAG = "display";
 
@@ -25,6 +28,9 @@ static lv_obj_t *wifi_info_container;
 static lv_obj_t *disk_info_container;
 static lv_obj_t *mood_controls_container;
 static lv_obj_t *chat_container;
+
+static lv_obj_t *chat_history, *chat_message;
+static time_t chat_last_received_message = 0;
 
 typedef struct debug_tabs debug_tabs_t;
 
@@ -60,6 +66,10 @@ struct mesh_info_table {
     { .name = "Address", .value = NULL },
     { .name = "Msg sent", .value = NULL },
     { .name = "Network time", .value = NULL },
+    { .name = "Company ID", .value = NULL },
+    { .name = "Group address", .value = NULL },
+    { .name = "Netkey index", .value = NULL },
+    { .name = "Appkey index", .value = NULL },
 };
 
 static const char *FX_mode_names[] = {
@@ -115,6 +125,7 @@ static lv_obj_t *tab_mesh_init(debug_tabs_t *tab)
 {
     lv_obj_t *h, *sw;
     lv_obj_t *parent = tab->tab = lv_tabview_add_tab(tab_view, tab->name);
+    char msg[1024];
 
     lv_page_set_scrl_layout(parent, LV_LAYOUT_PRETTY_MID);
 
@@ -122,6 +133,33 @@ static lv_obj_t *tab_mesh_init(debug_tabs_t *tab)
     h = create_container(parent);
     for(int i=0; i<mesh_info_rows::count; i++) {
         mesh_info_table[i].value = create_kv_row_labels(h, mesh_info_table[i].name);
+    }
+
+    /* set values for that never changes */
+    snprintf((char *)&msg, sizeof(msg), "0x%04x", badge_network_info.unicast_addr);
+    lv_label_set_text(mesh_info_table[mesh_info_rows::addr].value, (char *)&msg);
+
+    snprintf((char *)&msg, sizeof(msg), "0x%04x", NSEC_COMPANY_ID);
+    lv_label_set_text(mesh_info_table[mesh_info_rows::company_id].value, (char *)&msg);
+
+    snprintf((char *)&msg, sizeof(msg), "0x%04x", badge_network_info.group_addr);
+    lv_label_set_text(mesh_info_table[mesh_info_rows::group_addr].value, (char *)&msg);
+
+    snprintf((char *)&msg, sizeof(msg), "%d", badge_network_info.net_idx);
+    lv_label_set_text(mesh_info_table[mesh_info_rows::net_idx].value, (char *)&msg);
+
+    snprintf((char *)&msg, sizeof(msg), "%d", badge_network_info.app_idx);
+    lv_label_set_text(mesh_info_table[mesh_info_rows::app_idx].value, (char *)&msg);
+
+    h = create_container(parent, "BLE mesh operations");
+    for(int i=0; mesh_callbacks[i].cb != NULL; i++) {
+        if(mesh_callbacks[i].op == OP_VND_SET_NAME)
+            /* dont show this command to delay chaos a little further */
+            continue;
+
+        lv_obj_t *value = create_kv_row_labels(h, mesh_callbacks[i].name);
+        snprintf((char *)&msg, sizeof(msg), "0x%04lx", (mesh_callbacks[i].op & ~(0xC00000 | NSEC_COMPANY_ID)) >> 16);
+        lv_label_set_text(value, (char *)&msg);
     }
 
     return parent;
@@ -345,6 +383,44 @@ static void chat_enable_event(lv_obj_t *sw, lv_event_t event)
     return;
 }
 
+static void kb_event_cb(lv_obj_t * _kb, lv_event_t e)
+{
+    lv_keyboard_def_event_cb(kb, e);
+
+    if(e == LV_EVENT_APPLY) {
+        const char *msg = lv_textarea_get_text(chat_message);
+        send_partyline(msg);
+
+        lv_textarea_set_text(chat_message, "");
+    }
+
+    if(e == LV_EVENT_APPLY || e == LV_EVENT_CANCEL) {
+        if(kb) {
+            lv_obj_set_height(tab_view, LV_VER_RES);
+            lv_obj_del(kb);
+            kb = NULL;
+        }
+    }
+}
+
+static void chat_message_event_cb(lv_obj_t * ta, lv_event_t e)
+{
+    if(e == LV_EVENT_FOCUSED) {
+        if(kb == NULL) {
+            lv_obj_set_height(tab_view, LV_VER_RES / 2);
+            kb = lv_keyboard_create(lv_scr_act(), NULL);
+            lv_obj_set_event_cb(kb, kb_event_cb);
+
+            lv_indev_wait_release(lv_indev_get_act());
+        }
+        lv_textarea_set_cursor_hidden(ta, false);
+        lv_page_focus(debug_tabs[debug_tab::chat].tab, lv_textarea_get_label(ta), LV_ANIM_ON);
+        lv_keyboard_set_textarea(kb, ta);
+    } else if(e == LV_EVENT_DEFOCUSED) {
+        lv_textarea_set_cursor_hidden(ta, true);
+    }
+}
+
 static lv_obj_t *tab_chat_init(debug_tabs_t *tab)
 {
     lv_obj_t *h, *sw, *ta;
@@ -365,23 +441,20 @@ static lv_obj_t *tab_chat_init(debug_tabs_t *tab)
     lv_obj_add_style(h, LV_CONT_PART_MAIN, &style_row_container);
 
     // input
-    ta = lv_textarea_create(h, NULL);
+    ta = chat_message = lv_textarea_create(h, NULL);
     lv_cont_set_fit2(ta, LV_FIT_PARENT, LV_FIT_NONE);
     lv_textarea_set_text(ta, "");
     lv_textarea_set_placeholder_text(ta, "Message");
     lv_textarea_set_one_line(ta, true);
     lv_textarea_set_cursor_hidden(ta, true);
-    // lv_obj_set_event_cb(ta, ta_event_cb);
+    lv_obj_set_event_cb(ta, chat_message_event_cb);
 
-    lv_obj_t *label = lv_label_create(h, NULL);
-    lv_label_set_text(label, "<Foo> Hello?\n<Bar> Hola!\n" \
-        "<Foo> Hello?\n<Bar> Hola!\n" \
-        "<Foo> Hello?\n<Bar> Hola!\n" \
-        "<Foo> Hello?\n<Bar> Hola!\n" \
-        "<Foo> Hello?\n<Bar> Hola!\n" \
-        "<Foo> Hello?\n<Bar> Hola!\n" \
-        "<Foo> Hello?\n<Bar> Hola!\n");
+    lv_obj_t *label = chat_history = lv_label_create(h, NULL);
+    lv_label_set_recolor(label, true);
+    lv_label_set_text(label, "This is the start of chat history");
+    lv_label_set_long_mode(label, LV_LABEL_LONG_BREAK);
     lv_obj_align(label, NULL, LV_ALIGN_IN_LEFT_MID, 0, 0);
+    lv_obj_set_width(label, 270);
 
     return parent;
 }
@@ -405,15 +478,44 @@ void screen_debug_init()
     return;
 }
 
+typedef struct chat_history_buffer {
+    time_t most_recent;
+    char *data;
+    unsigned int size;
+} chat_history_buffer_t;
+
+bool partyline_each_cb(partyline_msg_t *msg, chat_history_buffer_t *buf)
+{
+    char fmt[PARTYLINE_MAX_MESSAGE_LENGTH + BADGE_NAME_LEN + 32];
+    struct tm tm;
+
+    gmtime_r(&msg->recv_at, &tm);
+
+    snprintf((char *)&fmt, sizeof(fmt), "#0000ff (%02d:%02d)# #ff0000 %s#> %s\n", tm.tm_hour, tm.tm_min, msg->from, msg->msg);
+
+    unsigned int fmt_len = strlen(fmt);
+    unsigned int data_len = strlen(buf->data);
+    if((data_len + fmt_len + 1) > buf->size) {
+        buf->data = (char *)realloc(buf->data, buf->size + 1024);
+        buf->size += 1024;
+    }
+
+    strcpy((char *)&buf->data[data_len], (char *)&fmt);
+
+    if(buf->most_recent == 0) {
+        /* collect timestamp from very first (most recent) message */
+        buf->most_recent = msg->recv_at;
+    }
+
+    return true;
+}
+
 void screen_debug_loop()
 {
     char msg[1024];
 
     // update mesh info
     lv_label_set_text(mesh_info_table[mesh_info_rows::name].value, (char *)&badge_network_info.name);
-
-    snprintf((char *)&msg, sizeof(msg), "0x%04x", badge_network_info.unicast_addr);
-    lv_label_set_text(mesh_info_table[mesh_info_rows::addr].value, (char *)&msg);
 
     snprintf((char *)&msg, sizeof(msg), "%lu", bt_mesh.seq);
     lv_label_set_text(mesh_info_table[mesh_info_rows::seq_num].value, (char *)&msg);
@@ -446,6 +548,23 @@ void screen_debug_loop()
 
             mood_changed = false;
             last_mood_beacon_at = now;
+        }
+    }
+
+    if(debug_tabs[debug_tab::chat].enabled) {
+        if(partyline_received_since(chat_last_received_message)) {
+            chat_history_buffer_t buf = {
+                .most_recent = 0,
+                .data = (char *)malloc(1024),
+                .size = 1024,
+            };
+            memset(buf.data, 0, buf.size);
+
+            partyline_each((partyline_each_cb_t)&partyline_each_cb, &buf);
+            chat_last_received_message = buf.most_recent;
+
+            lv_label_set_text(chat_history, buf.data);
+            free(buf.data);
         }
     }
 
