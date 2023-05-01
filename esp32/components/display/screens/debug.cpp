@@ -125,7 +125,6 @@ static lv_obj_t *tab_mesh_init(debug_tabs_t *tab)
 {
     lv_obj_t *h, *sw;
     lv_obj_t *parent = tab->tab = lv_tabview_add_tab(tab_view, tab->name);
-    char msg[1024];
 
     lv_page_set_scrl_layout(parent, LV_LAYOUT_PRETTY_MID);
 
@@ -136,20 +135,11 @@ static lv_obj_t *tab_mesh_init(debug_tabs_t *tab)
     }
 
     /* set values for that never changes */
-    snprintf((char *)&msg, sizeof(msg), "0x%04x", badge_network_info.unicast_addr);
-    lv_label_set_text(mesh_info_table[mesh_info_rows::addr].value, (char *)&msg);
-
-    snprintf((char *)&msg, sizeof(msg), "0x%04x", NSEC_COMPANY_ID);
-    lv_label_set_text(mesh_info_table[mesh_info_rows::company_id].value, (char *)&msg);
-
-    snprintf((char *)&msg, sizeof(msg), "0x%04x", badge_network_info.group_addr);
-    lv_label_set_text(mesh_info_table[mesh_info_rows::group_addr].value, (char *)&msg);
-
-    snprintf((char *)&msg, sizeof(msg), "%d", badge_network_info.net_idx);
-    lv_label_set_text(mesh_info_table[mesh_info_rows::net_idx].value, (char *)&msg);
-
-    snprintf((char *)&msg, sizeof(msg), "%d", badge_network_info.app_idx);
-    lv_label_set_text(mesh_info_table[mesh_info_rows::app_idx].value, (char *)&msg);
+    lv_label_set_text_fmt(mesh_info_table[mesh_info_rows::addr].value, "0x%04x", badge_network_info.unicast_addr);
+    lv_label_set_text_fmt(mesh_info_table[mesh_info_rows::company_id].value, "0x%04x", NSEC_COMPANY_ID);
+    lv_label_set_text_fmt(mesh_info_table[mesh_info_rows::group_addr].value, "0x%04x", badge_network_info.group_addr);
+    lv_label_set_text_fmt(mesh_info_table[mesh_info_rows::net_idx].value, "%d", badge_network_info.net_idx);
+    lv_label_set_text_fmt(mesh_info_table[mesh_info_rows::app_idx].value, "%d", badge_network_info.app_idx);
 
     h = create_container(parent, "BLE mesh operations");
     for(int i=0; mesh_callbacks[i].cb != NULL; i++) {
@@ -158,8 +148,7 @@ static lv_obj_t *tab_mesh_init(debug_tabs_t *tab)
             continue;
 
         lv_obj_t *value = create_kv_row_labels(h, mesh_callbacks[i].name);
-        snprintf((char *)&msg, sizeof(msg), "0x%04lx", (mesh_callbacks[i].op & ~(0xC00000 | NSEC_COMPANY_ID)) >> 16);
-        lv_label_set_text(value, (char *)&msg);
+        lv_label_set_text_fmt(value, "0x%04lx", (mesh_callbacks[i].op & ~(0xC00000 | NSEC_COMPANY_ID)) >> 16);
     }
 
     return parent;
@@ -389,7 +378,18 @@ static void kb_event_cb(lv_obj_t * _kb, lv_event_t e)
 
     if(e == LV_EVENT_APPLY) {
         const char *msg = lv_textarea_get_text(chat_message);
-        send_partyline(msg);
+
+        if(debug_tabs[debug_tab::mood].enabled) {
+            char fmt[PARTYLINE_MAX_MESSAGE_LENGTH];
+            lv_color_t color = Save::save_data.mood_color;
+            // lv_color_t is 16 bits, we lose some precision at the bottom of each nibble
+            uint32_t rgb = (color.ch.red << (16+3)) | ((color.ch.green_l | (color.ch.green_h << 3)) << (8+2)) | (color.ch.blue << 3);
+
+            snprintf((char *)fmt, sizeof(fmt), "#%06lx %s", rgb, msg);
+            send_partyline(fmt);
+        } else {
+            send_partyline(msg);
+        }
 
         lv_textarea_set_text(chat_message, "");
     }
@@ -512,13 +512,9 @@ bool partyline_each_cb(partyline_msg_t *msg, chat_history_buffer_t *buf)
 
 void screen_debug_loop()
 {
-    char msg[1024];
-
     // update mesh info
     lv_label_set_text(mesh_info_table[mesh_info_rows::name].value, (char *)&badge_network_info.name);
-
-    snprintf((char *)&msg, sizeof(msg), "%lu", bt_mesh.seq);
-    lv_label_set_text(mesh_info_table[mesh_info_rows::seq_num].value, (char *)&msg);
+    lv_label_set_text_fmt(mesh_info_table[mesh_info_rows::seq_num].value, "%lu", bt_mesh.seq);
 
     if(BadgeMesh::getInstance().networkTimeIsValid()) {
         struct tm tm;
@@ -526,8 +522,7 @@ void screen_debug_loop()
 
         BadgeMesh::getInstance().networkTimeGet(&t);
         gmtime_r(&t, &tm);
-        snprintf((char *)&msg, sizeof(msg), "%02d:%02d:%02d", tm.tm_hour, tm.tm_min, tm.tm_sec);
-        lv_label_set_text(mesh_info_table[mesh_info_rows::network_time].value, (char *)&msg);
+        lv_label_set_text_fmt(mesh_info_table[mesh_info_rows::network_time].value, "%02d:%02d:%02d", tm.tm_hour, tm.tm_min, tm.tm_sec);
     } else {
         lv_label_set_text(mesh_info_table[mesh_info_rows::network_time].value, "(not available)");
     }
