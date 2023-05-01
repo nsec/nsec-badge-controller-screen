@@ -25,6 +25,7 @@
 #include "badge/mesh/ops/info.h"
 #include "badge/mesh/ops/neopixel.h"
 #include "badge/mesh/ops/time.h"
+#include "badge/mesh/ops/flag.h"
 
 #if CONFIG_BADGE_MESH_ADMIN_COMMANDS
 
@@ -374,7 +375,7 @@ static int flag_request_cmd(int argc, char **argv)
         return 1;
     }
 
-    uint16_t address = flag_request_args.address->sval[0];
+    uint16_t address = flag_request_args.address->ival[0];
     send_flag_request(address);
 
     /* wait for a few seconds for a response */
