@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
+#include "esp_vfs.h"
 
 #include "FX.h"
 #include "lv_conf.h"
@@ -15,6 +16,7 @@
 #include "lv_utils.h"
 #include "save.h"
 #include "neopixel.h"
+#include "disk.h"
 #include "badge/mesh/ops/neopixel.h"
 #include "badge/mesh/ops/set_name.h"
 #include "badge/mesh/ops/partyline.h"
@@ -70,6 +72,16 @@ struct mesh_info_table {
     { .name = "Group address", .value = NULL },
     { .name = "Netkey index", .value = NULL },
     { .name = "Appkey index", .value = NULL },
+};
+
+struct sd_info_table {
+    const char *name;
+    lv_obj_t *value;
+} sd_info_table[sd_info_rows::count] = {
+    { .name = "Inserted?", .value = NULL },
+    { .name = "Name", .value = NULL },
+    { .name = "Capacity", .value = NULL },
+    { .name = "Mount point", .value = NULL },
 };
 
 static const char *FX_mode_names[] = {
@@ -193,6 +205,10 @@ static lv_obj_t *tab_wifi_init(debug_tabs_t *tab)
     return parent;
 }
 
+bool disk_info_displayed = false;
+static char disk_current_path[1024];
+static lv_obj_t *disk_list, *disk_explorer;
+
 static void disk_enable_event(lv_obj_t *sw, lv_event_t event)
 {
     switch(event) {
@@ -201,11 +217,77 @@ static void disk_enable_event(lv_obj_t *sw, lv_event_t event)
             bool enabled = lv_switch_get_state(sw);
             toggle_tab(&debug_tabs[debug_tab::disk], enabled);
             lv_obj_set_hidden(disk_info_container, !debug_tabs[debug_tab::disk].enabled);
+
+            if(enabled) {
+                Disk::getInstance().enable();
+            } else {
+                Disk::getInstance().disable();
+                disk_info_displayed = false;
+
+                for(int i=0; i<sd_info_rows::count; i++) {
+                    lv_label_set_text(sd_info_table[i].value, "-");
+                }
+            }
             break;
         }
     }
 
     return;
+}
+
+static void disk_refresh_files();
+
+static void disk_list_event_handler(lv_obj_t * obj, lv_event_t event)
+{
+    if(event == LV_EVENT_CLICKED) {
+        const char *name = lv_list_get_btn_text(obj);
+        bool dir = name[strlen(name)-1] == '/';
+
+        if(!strcmp("..", name)) {
+            for(int i=strlen(disk_current_path)-2;i>0 && disk_current_path[i] != '/';i--)
+                disk_current_path[i] = '\0';
+            disk_refresh_files();
+        } else if(dir) {
+            if(strlen(disk_current_path) + strlen(name) + 1 > sizeof(disk_current_path)) {
+                printf("can't open dir because path is too long");
+                return;
+            }
+            strcat(disk_current_path, name);
+            disk_refresh_files();
+        }
+    }
+}
+
+bool disk_iter_cb(dirent *entry, void *param)
+{
+    char fmt[257];
+    bool dir = entry->d_type == DT_DIR;
+    if(dir) {
+        snprintf((char *)&fmt, sizeof(fmt), "%s/", entry->d_name);
+    } else {
+        snprintf((char *)&fmt, sizeof(fmt), "%s", entry->d_name);
+    }
+    lv_obj_t *list_btn = lv_list_add_btn(disk_list, dir ? LV_SYMBOL_DIRECTORY : LV_SYMBOL_FILE, fmt);
+    lv_obj_set_event_cb(list_btn, disk_list_event_handler);
+
+    return true;
+}
+
+static void disk_refresh_files()
+{
+    char dir[32];
+    lv_list_clean(disk_list);
+
+    snprintf((char *)&dir, sizeof(dir), "%s/", Disk::getInstance().getMountPoint());
+
+    lv_obj_t *list_btn = lv_list_add_btn(disk_list, LV_SYMBOL_DIRECTORY, "..");
+    lv_obj_set_event_cb(list_btn, disk_list_event_handler);
+    if(!strcasecmp(disk_current_path, dir)) {
+        lv_obj_set_click(list_btn, false);
+        lv_btn_set_state(list_btn, LV_BTN_STATE_DISABLED);
+    }
+
+    Disk::getInstance().iterPath(disk_current_path, (disk_iter_cb_t)disk_iter_cb, NULL);
 }
 
 static lv_obj_t *tab_disk_init(debug_tabs_t *tab)
@@ -225,9 +307,19 @@ static lv_obj_t *tab_disk_init(debug_tabs_t *tab)
     // Information container
     h = disk_info_container = create_container(parent);
     lv_obj_set_hidden(h, !tab->enabled);
+    for(int i=0; i<sd_info_rows::count; i++) {
+        sd_info_table[i].value = create_kv_row_labels(h, sd_info_table[i].name);
+        lv_label_set_text(sd_info_table[i].value, "-");
+    }
 
-    create_kv_row_labels(h, "Inserted?");
-    create_kv_row_labels(h, "Size");
+    // File explorer container
+    h = disk_explorer = create_container(parent, "Explorer");
+    lv_obj_set_hidden(h, true);
+
+    disk_list = lv_list_create(h, NULL);
+    lv_obj_add_style(disk_list, LV_CONT_PART_MAIN, &style_row_container);
+    lv_obj_set_size(disk_list, 260, 160);
+    lv_obj_align(disk_list, NULL, LV_ALIGN_CENTER, 0, 0);
 
     return parent;
 }
@@ -476,6 +568,10 @@ void screen_debug_init()
         debug_tabs[i].init(&debug_tabs[i]);
     }
 
+    if(debug_tabs[debug_tab::disk].enabled) {
+        Disk::getInstance().enable();
+    }
+
     return;
 }
 
@@ -561,6 +657,41 @@ void screen_debug_loop()
 
             lv_label_set_text(chat_history, buf.data);
             free(buf.data);
+        }
+    }
+
+    if(debug_tabs[debug_tab::disk].enabled) {
+        if(!disk_info_displayed && Disk::getInstance().getCardState() == Disk::CardState::Present) {
+            sdmmc_card_t *card = Disk::getInstance().getCardInfo();
+            char name[10];
+
+            snprintf((char *)&name, sizeof(name), card->cid.name);
+
+            lv_label_set_text(sd_info_table[sd_info_rows::inserted].value, "Yes");
+            lv_label_set_text(sd_info_table[sd_info_rows::name].value, name);
+            lv_label_set_text_fmt(sd_info_table[sd_info_rows::capacity].value, "%lluMB",
+                ((uint64_t) card->csd.capacity) * card->csd.sector_size / (1024 * 1024));
+
+            snprintf((char *)&disk_current_path, sizeof(disk_current_path), "%s/", Disk::getInstance().getMountPoint());
+            lv_label_set_text(sd_info_table[sd_info_rows::mount].value, Disk::getInstance().getMountPoint());
+
+            disk_refresh_files();
+            lv_obj_set_hidden(disk_explorer, false);
+
+            disk_info_displayed = true;
+        }
+
+        if(disk_info_displayed && Disk::getInstance().getCardState() != Disk::CardState::Present) {
+            sdmmc_card_t *card = Disk::getInstance().getCardInfo();
+
+            lv_label_set_text(sd_info_table[sd_info_rows::inserted].value, "No");
+            lv_label_set_text(sd_info_table[sd_info_rows::name].value, "-");
+            lv_label_set_text(sd_info_table[sd_info_rows::capacity].value, "-");
+            lv_label_set_text(sd_info_table[sd_info_rows::mount].value, "-");
+
+            lv_obj_set_hidden(disk_explorer, true);
+
+            disk_info_displayed = false;
         }
     }
 

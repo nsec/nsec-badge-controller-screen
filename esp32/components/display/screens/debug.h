@@ -37,6 +37,17 @@ enum {
 };
 }
 
+namespace sd_info_rows {
+enum {
+    inserted = 0,
+    name,
+    capacity,
+    mount,
+
+    count // keep last
+};
+}
+
 void screen_debug_init();
 void screen_debug_loop();
 

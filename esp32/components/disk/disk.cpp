@@ -36,6 +36,8 @@ TaskHandle_t Disk::_taskHandle = NULL;
 
 void Disk::init()
 {
+    _enabled = false;
+    strcpy((char *)&_mount_point, MOUNT_POINT);
     xTaskCreate((TaskFunction_t)&(Disk::task), "sd card", 4096, this, 5, &Disk::_taskHandle);
 }
 
@@ -103,7 +105,7 @@ static esp_err_t _attach_spi_bus(sdspi_dev_handle_t *p_card_handle)
     return sdspi_host_init_device((const sdspi_device_config_t *)&slot_config, p_card_handle);
 }
 
-static esp_err_t _mount(const esp_vfs_fat_mount_config_t *mount_config, sdmmc_card_t *card, uint8_t pdrv)
+static esp_err_t _mount(const esp_vfs_fat_mount_config_t *mount_config, sdmmc_card_t *card, uint8_t pdrv, char *mp)
 {
     FRESULT res;
     FATFS* fs = NULL;
@@ -114,7 +116,7 @@ static esp_err_t _mount(const esp_vfs_fat_mount_config_t *mount_config, sdmmc_ca
     char drv[3] = {(char)('0' + pdrv), ':', 0};
 
     // connect FATFS to VFS
-    err = esp_vfs_fat_register(MOUNT_POINT, drv, mount_config->max_files, &fs);
+    err = esp_vfs_fat_register(mp, drv, mount_config->max_files, &fs);
     if (err == ESP_ERR_INVALID_STATE) {
         // it's okay, already registered with VFS
     } else if (err != ESP_OK) {
@@ -135,26 +137,45 @@ fail:
     if (fs) {
         f_mount(NULL, drv, 0);
     }
-    esp_vfs_fat_unregister_path(MOUNT_POINT);
+    esp_vfs_fat_unregister_path(mp);
     ff_diskio_unregister(pdrv);
     return err;
 }
 
-static esp_err_t _unmount(sdmmc_card_t *card)
+static esp_err_t _unmount(sdmmc_card_t *card, uint8_t pdrv, char *mp)
 {
-    BYTE pdrv = ff_diskio_get_pdrv_card(card);
     if (pdrv == 0xff) {
         return ESP_ERR_INVALID_ARG;
     }
 
     // unmount
     char drv[3] = {(char)('0' + pdrv), ':', 0};
-    f_mount(0, drv, 0);
+    FRESULT res = f_mount(0, drv, 0);
+    ESP_LOGI(TAG, "%s: f_mount res=%d", __func__, res);
     // release SD driver
     ff_diskio_unregister(pdrv);
 
-    esp_err_t err = esp_vfs_fat_unregister_path(MOUNT_POINT);
+    esp_err_t err = esp_vfs_fat_unregister_path(mp);
     return err;
+}
+
+bool Disk::iterPath(const char *path, disk_iter_cb_t cb, void *param)
+{
+    DIR *dir;
+    dirent *entry;
+
+    dir = opendir(path);
+    if(dir == NULL) {
+        return false;
+    }
+
+    while ((entry = readdir(dir)) != NULL) {
+        if(!cb(entry, param))
+            break;
+    }
+
+    closedir(dir);
+    return true;
 }
 
 void Disk::taskHandler()
@@ -162,13 +183,12 @@ void Disk::taskHandler()
     esp_err_t ret;
     esp_vfs_fat_sdmmc_mount_config_t mount_config = {
         .format_if_mount_failed = false,
-        .max_files = 5,
+        .max_files = 1,
         .allocation_unit_size = 16 * 1024,
         .disk_status_check_enable = 1,
     };
     int card_handle = -1;   //uninitialized
     BYTE pdrv = FF_DRV_NOT_USED;
-    sdmmc_card_t card;
     sdmmc_host_t host = SDSPI_HOST_DEFAULT();
     host.slot = VSPI_HOST;
 
@@ -195,9 +215,17 @@ void Disk::taskHandler()
     while(true) {
         vTaskDelay(1000 / portTICK_PERIOD_MS);
 
+        if(!_enabled) {
+            if(_cardState == CardState::NotPresent) {
+                continue;
+            } else if(_cardState == CardState::Present || _cardState == CardState::NotReadable) {
+                _cardState = CardState::Failed;
+            }
+        }
+
         switch(_cardState) {
         case CardState::NotPresent:
-            ret = sdmmc_card_init(&host, &card);
+            ret = sdmmc_card_init(&host, &_card);
             if (ret != ESP_OK) {
                 //ESP_LOGE(TAG, "Card isn't present (%s)", esp_err_to_name(ret));
                 continue;
@@ -207,7 +235,9 @@ void Disk::taskHandler()
             vTaskDelay(500 / portTICK_PERIOD_MS);
 
             // Card has been initialized, print its properties
-            //sdmmc_card_print_info(stdout, &card);
+            // sdmmc_card_print_info(stdout, &_card);
+
+            snprintf((char *)&_mount_point, sizeof(_mount_point), "/%s", _card.cid.name);
 
             // get a drive where we can mount the sd card
             if (ff_diskio_get_drive(&pdrv) != ESP_OK || pdrv == FF_DRV_NOT_USED) {
@@ -217,7 +247,7 @@ void Disk::taskHandler()
                 break;
             }
 
-            ret = _mount(&mount_config, &card, pdrv);
+            ret = _mount(&mount_config, &_card, pdrv, _mount_point);
             if (ret != ESP_OK) {
                 ESP_LOGE(TAG, "Failed to mount drive. It may be formatted incorrectly, or SD card is corrupted? (%s)", esp_err_to_name(ret));
                 _cardState = CardState::NotReadable;
@@ -231,7 +261,7 @@ void Disk::taskHandler()
         case CardState::NotReadable:
         case CardState::Present:
             // nothing to do but wait until the user removed their card
-            ret = sdmmc_get_status(&card);
+            ret = sdmmc_get_status(&_card);
             if (ret != ESP_OK) {
                 ESP_LOGI(TAG, "SD card removed");
 
@@ -243,7 +273,8 @@ void Disk::taskHandler()
         case CardState::Failed:
             // do stuff to unmount the cart and deinit some things
 
-            ret = _unmount(&card);
+            ESP_LOGI(TAG, "Unmounting SD card");
+            ret = _unmount(&_card, pdrv, _mount_point);
             if (ret != ESP_OK) {
                  ESP_LOGE(TAG, "Failed to unmount drive. (%s)", esp_err_to_name(ret));
             }
