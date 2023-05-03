@@ -114,6 +114,8 @@ static esp_err_t _mount(const esp_vfs_fat_mount_config_t *mount_config, sdmmc_ca
     ff_sdmmc_set_disk_status_check(pdrv, mount_config->disk_status_check_enable);
     ESP_LOGD(TAG, "using pdrv=%i", pdrv);
     char drv[3] = {(char)('0' + pdrv), ':', 0};
+    // char drive_label[12];
+    // uint32_t drive_sn;
 
     // connect FATFS to VFS
     err = esp_vfs_fat_register(mp, drv, mount_config->max_files, &fs);
@@ -131,6 +133,7 @@ static esp_err_t _mount(const esp_vfs_fat_mount_config_t *mount_config, sdmmc_ca
         ESP_LOGE(TAG, "failed to mount card (%d)", res);
         goto fail;
     }
+
     return ESP_OK;
 
 fail:
@@ -172,6 +175,17 @@ bool Disk::iterPath(const char *path, disk_iter_cb_t cb, void *param)
     while ((entry = readdir(dir)) != NULL) {
         if(!cb(entry, param))
             break;
+    }
+
+    closedir(dir);
+    return true;
+}
+
+static bool dir_exist(const char *path)
+{
+    DIR *dir = opendir(path);
+    if(dir == NULL) {
+        return false;
     }
 
     closedir(dir);
@@ -223,6 +237,9 @@ void Disk::taskHandler()
             }
         }
 
+        char volume_label[12];
+        char drv[3] = {(char)('0' + pdrv), ':', 0};
+
         switch(_cardState) {
         case CardState::NotPresent:
             ret = sdmmc_card_init(&host, &_card);
@@ -237,7 +254,7 @@ void Disk::taskHandler()
             // Card has been initialized, print its properties
             // sdmmc_card_print_info(stdout, &_card);
 
-            snprintf((char *)&_mount_point, sizeof(_mount_point), "/%s", _card.cid.name);
+            snprintf((char *)&_mount_point, sizeof(_mount_point), "%s", MOUNT_POINT);
 
             // get a drive where we can mount the sd card
             if (ff_diskio_get_drive(&pdrv) != ESP_OK || pdrv == FF_DRV_NOT_USED) {
@@ -253,6 +270,37 @@ void Disk::taskHandler()
                 _cardState = CardState::NotReadable;
                 Buzzer::getInstance().buzz(900, 1000);
                 break;
+            }
+
+            memset(volume_label, 0, sizeof(volume_label));
+
+            /* Get volume label of the default drive */
+            drv[0] = (char)('0' + pdrv);
+            if(FR_OK == f_getlabel(drv, (char *)&volume_label, NULL)) {
+                ret = _unmount(&_card, pdrv, _mount_point);
+                if (ret != ESP_OK) {
+                    ESP_LOGE(TAG, "Failed to remount drive with volume label. (%s)", esp_err_to_name(ret));
+                    _cardState = CardState::NotReadable;
+                    Buzzer::getInstance().buzz(900, 1000);
+                    break;
+                }
+
+                snprintf((char *)&_mount_point, sizeof(_mount_point), "/%s", volume_label);
+
+                if(dir_exist(_mount_point)) {
+                    ESP_LOGE(TAG, "Failed to remount drive at %s, folder already exists", _mount_point);
+                    _cardState = CardState::NotReadable;
+                    Buzzer::getInstance().buzz(900, 1000);
+                    break;
+                }
+
+                ret = _mount(&mount_config, &_card, pdrv, _mount_point);
+                if (ret != ESP_OK) {
+                    ESP_LOGE(TAG, "Failed to mount drive. It may be formatted incorrectly, or SD card is corrupted? (%s)", esp_err_to_name(ret));
+                    _cardState = CardState::NotReadable;
+                    Buzzer::getInstance().buzz(900, 1000);
+                    break;
+                }
             }
 
             Buzzer::getInstance().play(Buzzer::Sounds::Connection);

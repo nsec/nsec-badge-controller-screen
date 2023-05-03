@@ -207,7 +207,7 @@ static lv_obj_t *tab_wifi_init(debug_tabs_t *tab)
 
 bool disk_info_displayed = false;
 static char disk_current_path[1024];
-static lv_obj_t *disk_list, *disk_explorer;
+static lv_obj_t *disk_list, *disk_explorer, *disk_path_value;
 
 static void disk_enable_event(lv_obj_t *sw, lv_event_t event)
 {
@@ -243,8 +243,8 @@ static void disk_list_event_handler(lv_obj_t * obj, lv_event_t event)
         const char *name = lv_list_get_btn_text(obj);
         bool dir = name[strlen(name)-1] == '/';
 
-        if(!strcmp("..", name)) {
-            for(int i=strlen(disk_current_path)-2;i>0 && disk_current_path[i] != '/';i--)
+        if(!strcmp("../", name)) {
+            for(int i=strlen(disk_current_path)-2; i>0 && disk_current_path[i] != '/'; i--)
                 disk_current_path[i] = '\0';
             disk_refresh_files();
         } else if(dir) {
@@ -254,6 +254,33 @@ static void disk_list_event_handler(lv_obj_t * obj, lv_event_t event)
             }
             strcat(disk_current_path, name);
             disk_refresh_files();
+        } else { /* open file */
+            int len = strlen(disk_current_path) + strlen(name) + 1;
+            char *file_path = (char *)malloc(len);
+
+            snprintf(file_path, len, "%s%s", disk_current_path, name);
+
+            FILE* f = fopen(file_path, "r");
+            free(file_path);
+            if (f == NULL) {
+                ESP_LOGE(TAG, "Failed to open file for reading");
+                return;
+            }
+            char line[64];
+            fgets(line, sizeof(line), f);
+            fclose(f);
+            // strip newline
+            char* pos = strchr(line, '\n');
+            if (pos) {
+                *pos = '\0';
+            }
+
+            static const char * btns[] = {"Close", ""};
+            lv_obj_t * m = lv_msgbox_create(lv_scr_act(), NULL);
+            lv_msgbox_set_text(m, line);
+            lv_msgbox_add_btns(m, btns);
+            lv_obj_t * btnm = lv_msgbox_get_btnmatrix(m);
+            lv_btnmatrix_set_btn_ctrl(btnm, 0, LV_BTNMATRIX_CTRL_CHECK_STATE);
         }
     }
 }
@@ -262,11 +289,13 @@ bool disk_iter_cb(dirent *entry, void *param)
 {
     char fmt[257];
     bool dir = entry->d_type == DT_DIR;
+
     if(dir) {
         snprintf((char *)&fmt, sizeof(fmt), "%s/", entry->d_name);
     } else {
         snprintf((char *)&fmt, sizeof(fmt), "%s", entry->d_name);
     }
+
     lv_obj_t *list_btn = lv_list_add_btn(disk_list, dir ? LV_SYMBOL_DIRECTORY : LV_SYMBOL_FILE, fmt);
     lv_obj_set_event_cb(list_btn, disk_list_event_handler);
 
@@ -280,7 +309,9 @@ static void disk_refresh_files()
 
     snprintf((char *)&dir, sizeof(dir), "%s/", Disk::getInstance().getMountPoint());
 
-    lv_obj_t *list_btn = lv_list_add_btn(disk_list, LV_SYMBOL_DIRECTORY, "..");
+    lv_label_set_text(disk_path_value, disk_current_path);
+
+    lv_obj_t *list_btn = lv_list_add_btn(disk_list, LV_SYMBOL_DIRECTORY, "../");
     lv_obj_set_event_cb(list_btn, disk_list_event_handler);
     if(!strcasecmp(disk_current_path, dir)) {
         lv_obj_set_click(list_btn, false);
@@ -315,6 +346,8 @@ static lv_obj_t *tab_disk_init(debug_tabs_t *tab)
     // File explorer container
     h = disk_explorer = create_container(parent, "Explorer");
     lv_obj_set_hidden(h, true);
+
+    disk_path_value = create_kv_row_labels(h, "Path");
 
     disk_list = lv_list_create(h, NULL);
     lv_obj_add_style(disk_list, LV_CONT_PART_MAIN, &style_row_container);
@@ -430,7 +463,7 @@ static lv_obj_t *tab_mood_init(debug_tabs_t *tab)
             strcat((char *)&choices, "\n");
     }
 
-    lv_roller_set_options(roller, (char *)&choices, LV_ROLLER_MODE_INIFINITE);
+    lv_roller_set_options(roller, (char *)&choices, LV_ROLLER_MODE_NORMAL);
     lv_roller_set_selected(roller, Save::save_data.mood_mode, LV_ANIM_OFF);
 
     cpicker = lv_cpicker_create(h, NULL);

@@ -21,6 +21,7 @@
 #include "cmd_nvs.h"
 #include "cmd_debug.h"
 #include "cmd_neopixel.h"
+#include "cmd_flag.h"
 #include "console.h"
 #include "buzzer.h"
 #include "save.h"
@@ -109,6 +110,7 @@ void console_task(void *args)
     if(Save::save_data.debug_enabled) {
         register_system();
         register_neopixel();
+        register_flag_commands();
 
 #if CONFIG_BADGE_MESH_ADMIN_COMMANDS
         register_nvs();

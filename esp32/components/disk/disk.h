@@ -42,7 +42,7 @@ class Disk
     CardState _cardState;
     sdmmc_card_t _card;
     bool _enabled;
-    char _mount_point[10];
+    char _mount_point[16];
 
   public:
     Disk(Disk const &) = delete;
