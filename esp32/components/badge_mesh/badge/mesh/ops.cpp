@@ -5,6 +5,7 @@
 
 #include "badge/mesh/ops.h"
 #include "badge/mesh/ops/ping.h"
+#include "badge/mesh/ops/realtimeled.h"
 #include "badge/mesh/ops/set_name.h"
 #include "badge/mesh/ops/census.h"
 #include "badge/mesh/ops/ui_message.h"
@@ -42,6 +43,7 @@ esp_ble_mesh_model_op_t vnd_cli_ops[] = {
 */
 esp_ble_mesh_model_op_t vnd_srv_ops[] = {
     ESP_BLE_MESH_MODEL_OP(OP_VND_PING, sizeof(ping_data_t)),
+    ESP_BLE_MESH_MODEL_OP(OP_VND_RTLED_REQUEST, 0),
     ESP_BLE_MESH_MODEL_OP(OP_VND_SET_NAME, sizeof(set_name_data_t)),
     ESP_BLE_MESH_MODEL_OP(OP_VND_CENSUS_REQUEST, sizeof(census_request_data_t)),
     ESP_BLE_MESH_MODEL_OP(OP_VND_CENSUS_RESPONSE, sizeof(census_response_data_t)),
@@ -93,6 +95,7 @@ mesh_callback_t mesh_callbacks[] = {
     { .op = OP_VND_CENSUS_REQUEST,      .cb = census_request_received,      .name = "Census request" },
 #if CONFIG_BADGE_MESH_ADMIN_COMMANDS
     { .op = OP_VND_CENSUS_RESPONSE,     .cb = census_response_received,     .name = "Census response" },
+    { .op = OP_VND_RTLED_REQUEST,       .cb = rtled_request_received,       .name = "Real time LED" },
 #endif
     { .op = OP_VND_UI_MESSAGE,          .cb = ui_message_received,          .name = "Popup Message" },
     { .op = OP_VND_INFO_REQUEST,        .cb = info_request_received,        .name = "Info request" },

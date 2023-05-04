@@ -21,6 +21,7 @@
 #include "badge/mesh/ops/set_name.h"
 #include "badge/mesh/ops/census.h"
 #include "badge/mesh/ops/ping.h"
+#include "badge/mesh/ops/realtimeled.h"
 #include "badge/mesh/ops/ui_message.h"
 #include "badge/mesh/ops/info.h"
 #include "badge/mesh/ops/neopixel.h"
@@ -39,6 +40,7 @@ static int ping_cmd(int argc, char **argv);
 static int set_name_cmd(int argc, char **argv);
 static int ui_message_cmd(int argc, char **argv);
 static int info_cmd(int argc, char **argv);
+static int rtled_cmd(int argc, char **argv);
 static int neopixel_cmd(int argc, char **argv);
 static int time_cmd(int argc, char **argv);
 static int flag_request_cmd(int argc, char **argv);
@@ -66,6 +68,14 @@ static struct {
     struct arg_lit *all_modes;
     struct arg_end *end;
 } neopixel_args;
+
+static struct {
+    struct arg_int *start;
+    struct arg_int *ledids;
+    struct arg_int *color;
+    struct arg_int *brightness;
+    struct arg_end *end;
+} rtled_args;
 
 static struct {
     struct arg_int *now;
@@ -139,6 +149,13 @@ const esp_console_cmd_t subcommands[] = {
         .hint = NULL,
         .func = &flag_request_cmd,
         .argtable = &flag_request_args,
+    },
+    {
+        .command = "rtled",
+        .help = "Send a real time LED request",
+        .hint = NULL,
+        .func = &rtled_cmd,
+        .argtable = &rtled_args,
     },
 };
 
@@ -226,6 +243,27 @@ static int ping_cmd(int argc, char **argv)
         printf("Ping timed out (waited 5 seconds)...\n");
     }
 
+    return ESP_OK;
+}
+
+static int rtled_cmd(int argc, char **argv)
+{
+    int nerrors = arg_parse(argc, argv, (void **) &rtled_args);
+    if (nerrors != 0) {
+        arg_print_errors(stderr, rtled_args.end, argv[0]);
+        return 1;
+    }
+
+    uint16_t start = rtled_args.start->count == 0 ? 0 : rtled_args.start->ival[0];
+    uint32_t ledids = rtled_args.ledids->count == 0 ? 1 : rtled_args.ledids->ival[0];
+    uint8_t color = rtled_args.color->count == 0 ? 255 : rtled_args.color->ival[0];
+    uint8_t brightness = rtled_args.brightness->count == 0 ? 128 : rtled_args.brightness->ival[0];
+
+    if(color) {
+        color &= 0xff;
+    }
+
+    send_rtled_request(start, ledids, color, brightness);
     return ESP_OK;
 }
 
@@ -420,6 +458,12 @@ void register_mesh_admin_commands(void)
 
     flag_request_args.address = arg_int1(NULL, NULL, "<addr>", "address of the node (format: 0xffff)");
     flag_request_args.end = arg_end(2);
+
+    rtled_args.start = arg_int0("s", "start", "<uint16_t>", ">0 = starts processing, stop neopixel by N seconds");
+    rtled_args.ledids = arg_int0("l", "ledids", "<uint32_t>", "32bits mask of leds to change");
+    rtled_args.color = arg_int0("c", "color", "<uint8_t>", "0-255 color");
+    rtled_args.brightness = arg_int0("b", "brightness", "<uint8_t>", "0-255 brightness");
+    rtled_args.end = arg_end(5);
 
     neopixel_args.time = arg_int0("t", "time", "<int>", "number of seconds to display the pattern for (loops until interrupted unless specified)");
     neopixel_args.mode = arg_int1("m", "mode", "<int>", "number representing the mode to set (badge must support it)");
