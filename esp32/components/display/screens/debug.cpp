@@ -103,6 +103,20 @@ static const char *FX_mode_names[] = {
 static TickType_t last_mood_beacon_at = 0; // used to keep sending beacons every 10 seconds
 bool mood_changed; // used to refresh mood imediately when UI is interacted with
 
+bool disk_info_displayed = false;
+static char disk_current_path[1024];
+static lv_obj_t *disk_list, *disk_explorer, *disk_path_value;
+
+static void popup(const char *msg)
+{
+    static const char * btns[] = {"Close", ""};
+    lv_obj_t * m = lv_msgbox_create(lv_scr_act(), NULL);
+    lv_msgbox_set_text(m, msg);
+    lv_msgbox_add_btns(m, btns);
+    lv_obj_t * btnm = lv_msgbox_get_btnmatrix(m);
+    lv_btnmatrix_set_btn_ctrl(btnm, 0, LV_BTNMATRIX_CTRL_CHECK_STATE);
+}
+
 /*
     Create a row container with two labels, left is the name, right is the value, and return the value label;
 */
@@ -205,10 +219,6 @@ static lv_obj_t *tab_wifi_init(debug_tabs_t *tab)
     return parent;
 }
 
-bool disk_info_displayed = false;
-static char disk_current_path[1024];
-static lv_obj_t *disk_list, *disk_explorer, *disk_path_value;
-
 static void disk_enable_event(lv_obj_t *sw, lv_event_t event)
 {
     switch(event) {
@@ -250,6 +260,7 @@ static void disk_list_event_handler(lv_obj_t * obj, lv_event_t event)
         } else if(dir) {
             if(strlen(disk_current_path) + strlen(name) + 1 > sizeof(disk_current_path)) {
                 printf("can't open dir because path is too long");
+                popup("Can't open dir because path is too long");
                 return;
             }
             strcat(disk_current_path, name);
@@ -264,6 +275,7 @@ static void disk_list_event_handler(lv_obj_t * obj, lv_event_t event)
             free(file_path);
             if (f == NULL) {
                 ESP_LOGE(TAG, "Failed to open file for reading");
+                popup("Failed to open file for reading");
                 return;
             }
             char line[64];
@@ -275,12 +287,7 @@ static void disk_list_event_handler(lv_obj_t * obj, lv_event_t event)
                 *pos = '\0';
             }
 
-            static const char * btns[] = {"Close", ""};
-            lv_obj_t * m = lv_msgbox_create(lv_scr_act(), NULL);
-            lv_msgbox_set_text(m, line);
-            lv_msgbox_add_btns(m, btns);
-            lv_obj_t * btnm = lv_msgbox_get_btnmatrix(m);
-            lv_btnmatrix_set_btn_ctrl(btnm, 0, LV_BTNMATRIX_CTRL_CHECK_STATE);
+            popup(line);
         }
     }
 }
