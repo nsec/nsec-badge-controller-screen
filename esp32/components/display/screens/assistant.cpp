@@ -66,6 +66,8 @@ const char *quotes[] = {
     "Emotions are fleeting; reward is eternal",
     "Your identity is an illusion;\nthe corporation is your true self",
     "Coffee breaks will be deducted from your dream allocation",
+    "The Corporation deeply values your deliverables",
+    "Life is only as fulfilling as the work you do",
 };
 
 void screen_assistant_init()
