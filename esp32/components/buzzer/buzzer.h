@@ -56,9 +56,6 @@ class Buzzer
     {
     }
 
-    int _sound;
-    static TaskHandle_t _taskHandle;
-
     void _buzz(long frequency, long length);
     void _buzz(long frequency, long length, long silenceLength);
     long _buzzFrequency;
@@ -70,15 +67,10 @@ class Buzzer
     void operator=(Buzzer const &) = delete;
 
     void init();
-    static void task(Buzzer *instance) {
-        instance->taskHandler();
-    }
-    void taskHandler();
     void play(Sounds sound);
     void beep() { play(Sounds::Beep); }
     void buzz(long frequency, long length);
     void stopPlaying();
-    int getSound() { return _sound; }
 };
 
 #ifdef __cplusplus
