@@ -43,7 +43,7 @@ esp_ble_mesh_model_op_t vnd_cli_ops[] = {
 */
 esp_ble_mesh_model_op_t vnd_srv_ops[] = {
     ESP_BLE_MESH_MODEL_OP(OP_VND_PING, sizeof(ping_data_t)),
-    ESP_BLE_MESH_MODEL_OP(OP_VND_RTLED_REQUEST, 0),
+    ESP_BLE_MESH_MODEL_OP(OP_VND_RTLED_REQUEST, sizeof(rtled_request_data_t)),
     ESP_BLE_MESH_MODEL_OP(OP_VND_SET_NAME, sizeof(set_name_data_t)),
     ESP_BLE_MESH_MODEL_OP(OP_VND_CENSUS_REQUEST, sizeof(census_request_data_t)),
     ESP_BLE_MESH_MODEL_OP(OP_VND_CENSUS_RESPONSE, sizeof(census_response_data_t)),
