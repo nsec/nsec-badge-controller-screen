@@ -38,7 +38,7 @@ class Disk
     {
     }
 
-    static TaskHandle_t _taskHandle;
+    // static TaskHandle_t _taskHandle;
     CardState _cardState;
     sdmmc_card_t _card;
     bool _enabled;
@@ -49,9 +49,6 @@ class Disk
     void operator=(Disk const &) = delete;
 
     void init();
-    static void task(Disk *instance) {
-        instance->taskHandler();
-    }
     void taskHandler();
     CardState getCardState() { return _cardState; }
     sdmmc_card_t *getCardInfo() {

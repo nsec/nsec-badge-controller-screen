@@ -23,6 +23,7 @@
 #include "display.h"
 #include "buzzer.h"
 #include "save.h"
+#include "disk.h"
 #include "screens/splash.h"
 #include "screens/debug.h"
 #include "screens/assistant.h"
@@ -181,6 +182,8 @@ void Display::taskHandler()
                     screen_assistant_loop();
                 }
             }
+
+            Disk::getInstance().taskHandler();
 
             lv_task_handler();
             xSemaphoreGive(xGuiSemaphore);
