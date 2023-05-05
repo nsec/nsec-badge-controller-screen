@@ -7,6 +7,7 @@ set(SOURCES
     "badge/mesh/cmd/provision.cpp"
     "badge/mesh/ops.cpp"
     "badge/mesh/ops/ping.cpp"
+    "badge/mesh/ops/realtimeled.cpp"
     "badge/mesh/ops/set_name.cpp"
     "badge/mesh/ops/census.cpp"
     "badge/mesh/ops/ui_message.cpp"
