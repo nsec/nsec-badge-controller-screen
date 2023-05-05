@@ -22,6 +22,7 @@
 #include "cmd_debug.h"
 #include "cmd_neopixel.h"
 #include "cmd_flag.h"
+#include "cmd_modbus.h"
 #include "console.h"
 #include "buzzer.h"
 #include "save.h"
@@ -111,6 +112,8 @@ void console_task(void *args)
         register_system();
         register_neopixel();
         register_flag_commands();
+	    register_mb_start();
+	    register_mb_stop();
 
 #if CONFIG_BADGE_MESH_ADMIN_COMMANDS
         register_nvs();

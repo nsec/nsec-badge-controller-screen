@@ -66,7 +66,7 @@ extern "C" void app_main(void) {
 
     Disk::getInstance().init();
 
-    BadgeMesh::getInstance().init();
+    //BadgeMesh::getInstance().init();
 
     console_create_task();
 }
