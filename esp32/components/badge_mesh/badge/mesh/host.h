@@ -11,6 +11,7 @@ extern uint8_t _device_address[6];
 extern bool mesh_host_initialized;
 
 esp_err_t mesh_host_initialize(void);
+esp_err_t mesh_host_deinit(void);
 
 #ifdef __cplusplus
 }

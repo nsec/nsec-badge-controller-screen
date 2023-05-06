@@ -53,7 +53,7 @@ static esp_err_t _initialize_spi_bus()
         .quadhd_io_num = -1,
         .max_transfer_sz = SOC_SPI_MAXIMUM_BUFFER_SIZE,
     };
-    return spi_bus_initialize(VSPI_HOST, &bus_cfg, SPI_DMA_CH_AUTO);
+    return spi_bus_initialize(VSPI_HOST, &bus_cfg, SPI_DMA_CH2);
 }
 
 static esp_err_t _attach_spi_bus(sdspi_dev_handle_t *p_card_handle)

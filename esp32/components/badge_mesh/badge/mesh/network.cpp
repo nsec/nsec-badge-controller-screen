@@ -45,7 +45,7 @@ int mesh_device_auto_enter_network(badge_network_info_t *info)
     err = bt_mesh_provision(info->net_key, info->net_idx, info->flags, info->iv_index,
                             info->unicast_addr, info->dev_key);
     if (err) {
-        ESP_LOGE(TAG, "bt_mesh_provision() failed (err %d)", err);
+        ESP_LOGE(TAG, "bt_mesh_provision() failed (err %s)", esp_err_to_name(err));
         return err;
     }
 

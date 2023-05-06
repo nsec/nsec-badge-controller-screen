@@ -36,30 +36,69 @@ esp_err_t mesh_host_initialize(void)
     esp_bt_controller_config_t bt_cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
     ret = esp_bt_controller_init(&bt_cfg);
     if (ret) {
-        ESP_LOGE(TAG, "%s initialize controller failed", __func__);
+        ESP_LOGE(TAG, "%s initialize controller failed (%s)", __func__, esp_err_to_name(ret));
         return ret;
     }
 
     ret = esp_bt_controller_enable(ESP_BT_MODE_BLE);
     if (ret) {
-        ESP_LOGE(TAG, "%s enable controller failed", __func__);
-        return ret;
+        ESP_LOGE(TAG, "%s enable controller failed (%s)", __func__, esp_err_to_name(ret));
+        goto fail;
     }
     ret = esp_bluedroid_init();
     if (ret) {
-        ESP_LOGE(TAG, "%s init bluetooth failed", __func__);
-        return ret;
+        ESP_LOGE(TAG, "%s init bluetooth failed (%s)", __func__, esp_err_to_name(ret));
+        goto fail;
     }
     ret = esp_bluedroid_enable();
     if (ret) {
-        ESP_LOGE(TAG, "%s enable bluetooth failed", __func__);
-        return ret;
+        ESP_LOGE(TAG, "%s enable bluetooth failed (%s)", __func__, esp_err_to_name(ret));
+        goto fail;
     }
 
     memcpy(&_device_address, esp_bt_dev_get_address(), ESP_BD_ADDR_LEN);
     mesh_host_initialized = true;
 
     return ret;
+fail:
+    esp_bluedroid_disable();
+    esp_bluedroid_deinit();
+    esp_bt_controller_disable();
+    esp_bt_controller_deinit();
+    esp_bt_controller_mem_release(ESP_BT_MODE_CLASSIC_BT);
+    return ret;
+}
+
+esp_err_t mesh_host_deinit(void)
+{
+    esp_err_t ret;
+
+    ret = esp_bluedroid_disable();
+    if (ret) {
+        ESP_LOGE(TAG, "%s esp_bluedroid_disable failed (%s)", __func__, esp_err_to_name(ret));
+    }
+
+    ret = esp_bluedroid_deinit();
+    if (ret) {
+        ESP_LOGE(TAG, "%s esp_bluedroid_deinit failed (%s)", __func__, esp_err_to_name(ret));
+    }
+
+    ret = esp_bt_controller_disable();
+    if (ret) {
+        ESP_LOGE(TAG, "%s esp_bt_controller_disable failed (%s)", __func__, esp_err_to_name(ret));
+    }
+
+    ret = esp_bt_controller_deinit();
+    if (ret) {
+        ESP_LOGE(TAG, "%s esp_bt_controller_deinit failed (%s)", __func__, esp_err_to_name(ret));
+    }
+
+    ret = esp_bt_controller_mem_release(ESP_BT_MODE_CLASSIC_BT);
+    if (ret) {
+        ESP_LOGE(TAG, "%s esp_bt_controller_mem_release failed (%s)", __func__, esp_err_to_name(ret));
+    }
+
+    return ESP_OK;
 }
 
 #else /* CONFIG_BT_BLUEDROID_ENABLED */
@@ -126,6 +165,19 @@ esp_err_t mesh_host_initialize(void)
     nimble_port_freertos_init(mesh_host_task);
 
     xSemaphoreTake(mesh_sem, portMAX_DELAY);
+
+    return ESP_OK;
+}
+
+esp_err_t mesh_host_deinit(void)
+{
+    nimble_port_freertos_deinit();
+    nimble_port_deinit();
+
+    mesh_host_initialized = false;
+
+    vSemaphoreDelete(mesh_sem);
+    mesh_sem = NULL;
 
     return ESP_OK;
 }

@@ -20,6 +20,9 @@ struct SaveData {
     uint8_t mood_brightness;
     uint8_t mood_mode;
     lv_color_t mood_color;
+
+    char wifi_ssid[32];
+    char wifi_password[32];
 };
 
 class Save
