@@ -32,13 +32,70 @@ static const char *MOUNT_POINT = "/sdcard";
     } \
     } while(0)
 
-TaskHandle_t Disk::_taskHandle = NULL;
+static int card_handle = -1;
+static esp_vfs_fat_sdmmc_mount_config_t mount_config = {
+    .format_if_mount_failed = false,
+    .max_files = 1,
+    .allocation_unit_size = 16 * 1024,
+    .disk_status_check_enable = 1,
+};
+static BYTE pdrv = FF_DRV_NOT_USED;
+static sdmmc_host_t host = SDSPI_HOST_DEFAULT();
+
+static esp_err_t _initialize_spi_bus()
+{
+    esp_err_t ret;
+    spi_bus_config_t bus_cfg = {
+        .mosi_io_num = PIN_NUM_MOSI,
+        .miso_io_num = PIN_NUM_MISO,
+        .sclk_io_num = PIN_NUM_CLK,
+        .quadwp_io_num = -1,
+        .quadhd_io_num = -1,
+        .max_transfer_sz = SOC_SPI_MAXIMUM_BUFFER_SIZE,
+    };
+    return spi_bus_initialize(VSPI_HOST, &bus_cfg, SPI_DMA_CH2);
+}
+
+static esp_err_t _attach_spi_bus(sdspi_dev_handle_t *p_card_handle)
+{
+    // This initializes the slot without card detect (CD) and write protect (WP) signals.
+    // Modify slot_config.gpio_cd and slot_config.gpio_wp if your board has these signals.
+    sdspi_device_config_t slot_config = SDSPI_DEVICE_CONFIG_DEFAULT();
+    slot_config.gpio_cs = PIN_NUM_CS;
+    slot_config.host_id = VSPI_HOST;
+
+    return sdspi_host_init_device((const sdspi_device_config_t *)&slot_config, p_card_handle);
+}
 
 void Disk::init()
 {
+    esp_err_t ret;
+
     _enabled = false;
     strcpy((char *)&_mount_point, MOUNT_POINT);
-    xTaskCreate((TaskFunction_t)&(Disk::task), "sd card", 4096, this, 5, &Disk::_taskHandle);
+
+    host.slot = VSPI_HOST;
+
+    ret = _initialize_spi_bus();
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "SPI bus init failed: %s", esp_err_to_name(ret));
+        return;
+    }
+
+    ret = (*host.init)();
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "SPI host init failed: %s", esp_err_to_name(ret));
+        return;
+    }
+
+    ret = _attach_spi_bus(&card_handle);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to attach sdspi device onto an SPI bus. (%s)", esp_err_to_name(ret));
+        return;
+    }
+
+    host.slot = card_handle;
+    // xTaskCreate((TaskFunction_t)&(Disk::task), "sd card", 4096, this, 5, &Disk::_taskHandle);
 }
 
 /*
@@ -79,31 +136,6 @@ static esp_err_t s_example_read_file(const char *path)
     return ESP_OK;
 }
 */
-
-static esp_err_t _initialize_spi_bus()
-{
-    esp_err_t ret;
-    spi_bus_config_t bus_cfg = {
-        .mosi_io_num = PIN_NUM_MOSI,
-        .miso_io_num = PIN_NUM_MISO,
-        .sclk_io_num = PIN_NUM_CLK,
-        .quadwp_io_num = -1,
-        .quadhd_io_num = -1,
-        .max_transfer_sz = SOC_SPI_MAXIMUM_BUFFER_SIZE,
-    };
-    return spi_bus_initialize(VSPI_HOST, &bus_cfg, SPI_DMA_CH_AUTO);
-}
-
-static esp_err_t _attach_spi_bus(sdspi_dev_handle_t *p_card_handle)
-{
-    // This initializes the slot without card detect (CD) and write protect (WP) signals.
-    // Modify slot_config.gpio_cd and slot_config.gpio_wp if your board has these signals.
-    sdspi_device_config_t slot_config = SDSPI_DEVICE_CONFIG_DEFAULT();
-    slot_config.gpio_cs = PIN_NUM_CS;
-    slot_config.host_id = VSPI_HOST;
-
-    return sdspi_host_init_device((const sdspi_device_config_t *)&slot_config, p_card_handle);
-}
 
 static esp_err_t _mount(const esp_vfs_fat_mount_config_t *mount_config, sdmmc_card_t *card, uint8_t pdrv, char *mp)
 {
@@ -195,70 +227,67 @@ static bool dir_exist(const char *path)
 void Disk::taskHandler()
 {
     esp_err_t ret;
-    esp_vfs_fat_sdmmc_mount_config_t mount_config = {
-        .format_if_mount_failed = false,
-        .max_files = 1,
-        .allocation_unit_size = 16 * 1024,
-        .disk_status_check_enable = 1,
-    };
-    int card_handle = -1;   //uninitialized
-    BYTE pdrv = FF_DRV_NOT_USED;
-    sdmmc_host_t host = SDSPI_HOST_DEFAULT();
-    host.slot = VSPI_HOST;
 
-    ret = _initialize_spi_bus();
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "SPI bus init failed: %s", esp_err_to_name(ret));
-        return;
+    if(!_enabled) {
+        if(_cardState == CardState::NotPresent) {
+            return;
+        } else if(_cardState == CardState::Present || _cardState == CardState::NotReadable) {
+            _cardState = CardState::Failed;
+        }
     }
 
-    ret = (*host.init)();
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "SPI host init failed: %s", esp_err_to_name(ret));
-        return;
-    }
+    char volume_label[12];
+    char drv[3] = {(char)('0' + pdrv), ':', 0};
 
-    ret = _attach_spi_bus(&card_handle);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to attach sdspi device onto an SPI bus. (%s)", esp_err_to_name(ret));
-        return;
-    }
-
-    host.slot = card_handle;
-
-    while(true) {
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
-
-        if(!_enabled) {
-            if(_cardState == CardState::NotPresent) {
-                continue;
-            } else if(_cardState == CardState::Present || _cardState == CardState::NotReadable) {
-                _cardState = CardState::Failed;
-            }
+    switch(_cardState) {
+    case CardState::NotPresent:
+        ret = sdmmc_card_init(&host, &_card);
+        if (ret != ESP_OK) {
+            //ESP_LOGE(TAG, "Card isn't present (%s)", esp_err_to_name(ret));
+            break;
         }
 
-        char volume_label[12];
-        char drv[3] = {(char)('0' + pdrv), ':', 0};
+        ESP_LOGI(TAG, "SD card inserted");
+        vTaskDelay(500 / portTICK_PERIOD_MS);
 
-        switch(_cardState) {
-        case CardState::NotPresent:
-            ret = sdmmc_card_init(&host, &_card);
+        // Card has been initialized, print its properties
+        // sdmmc_card_print_info(stdout, &_card);
+
+        snprintf((char *)&_mount_point, sizeof(_mount_point), "%s", MOUNT_POINT);
+
+        // get a drive where we can mount the sd card
+        if (ff_diskio_get_drive(&pdrv) != ESP_OK || pdrv == FF_DRV_NOT_USED) {
+            ESP_LOGE(TAG, "the maximum count of volumes is already mounted");
+            _cardState = CardState::NotReadable;
+            Buzzer::getInstance().buzz(900, 1000);
+            break;
+        }
+
+        ret = _mount(&mount_config, &_card, pdrv, _mount_point);
+        if (ret != ESP_OK) {
+            ESP_LOGE(TAG, "Failed to mount drive. It may be formatted incorrectly, or SD card is corrupted? (%s)", esp_err_to_name(ret));
+            _cardState = CardState::NotReadable;
+            Buzzer::getInstance().buzz(900, 1000);
+            break;
+        }
+
+        memset(volume_label, 0, sizeof(volume_label));
+
+        /* Get volume label of the default drive */
+        drv[0] = (char)('0' + pdrv);
+        if(FR_OK == f_getlabel(drv, (char *)&volume_label, NULL)) {
+            ret = _unmount(&_card, pdrv, _mount_point);
             if (ret != ESP_OK) {
-                //ESP_LOGE(TAG, "Card isn't present (%s)", esp_err_to_name(ret));
-                continue;
+                ESP_LOGE(TAG, "Failed to remount drive with volume label. (%s)", esp_err_to_name(ret));
+                _cardState = CardState::NotReadable;
+                Buzzer::getInstance().buzz(900, 1000);
+                break;
             }
 
-            ESP_LOGI(TAG, "SD card inserted");
-            vTaskDelay(500 / portTICK_PERIOD_MS);
+            snprintf((char *)&_mount_point, sizeof(_mount_point), "/%s", volume_label);
 
-            // Card has been initialized, print its properties
-            // sdmmc_card_print_info(stdout, &_card);
-
-            snprintf((char *)&_mount_point, sizeof(_mount_point), "%s", MOUNT_POINT);
-
-            // get a drive where we can mount the sd card
-            if (ff_diskio_get_drive(&pdrv) != ESP_OK || pdrv == FF_DRV_NOT_USED) {
-                ESP_LOGE(TAG, "the maximum count of volumes is already mounted");
+            if(dir_exist(_mount_point)) {
+                ESP_LOGE(TAG, "Failed to remount drive at %s, folder already exists", _mount_point);
                 _cardState = CardState::NotReadable;
                 Buzzer::getInstance().buzz(900, 1000);
                 break;
@@ -271,65 +300,32 @@ void Disk::taskHandler()
                 Buzzer::getInstance().buzz(900, 1000);
                 break;
             }
-
-            memset(volume_label, 0, sizeof(volume_label));
-
-            /* Get volume label of the default drive */
-            drv[0] = (char)('0' + pdrv);
-            if(FR_OK == f_getlabel(drv, (char *)&volume_label, NULL)) {
-                ret = _unmount(&_card, pdrv, _mount_point);
-                if (ret != ESP_OK) {
-                    ESP_LOGE(TAG, "Failed to remount drive with volume label. (%s)", esp_err_to_name(ret));
-                    _cardState = CardState::NotReadable;
-                    Buzzer::getInstance().buzz(900, 1000);
-                    break;
-                }
-
-                snprintf((char *)&_mount_point, sizeof(_mount_point), "/%s", volume_label);
-
-                if(dir_exist(_mount_point)) {
-                    ESP_LOGE(TAG, "Failed to remount drive at %s, folder already exists", _mount_point);
-                    _cardState = CardState::NotReadable;
-                    Buzzer::getInstance().buzz(900, 1000);
-                    break;
-                }
-
-                ret = _mount(&mount_config, &_card, pdrv, _mount_point);
-                if (ret != ESP_OK) {
-                    ESP_LOGE(TAG, "Failed to mount drive. It may be formatted incorrectly, or SD card is corrupted? (%s)", esp_err_to_name(ret));
-                    _cardState = CardState::NotReadable;
-                    Buzzer::getInstance().buzz(900, 1000);
-                    break;
-                }
-            }
-
-            Buzzer::getInstance().play(Buzzer::Sounds::Connection);
-            _cardState = CardState::Present;
-            break;
-        case CardState::NotReadable:
-        case CardState::Present:
-            // nothing to do but wait until the user removed their card
-            ret = sdmmc_get_status(&_card);
-            if (ret != ESP_OK) {
-                ESP_LOGI(TAG, "SD card removed");
-
-                Buzzer::getInstance().play(Buzzer::Sounds::Disconnection);
-                _cardState = CardState::Failed;
-            }
-
-            break;
-        case CardState::Failed:
-            // do stuff to unmount the cart and deinit some things
-
-            ESP_LOGI(TAG, "Unmounting SD card");
-            ret = _unmount(&_card, pdrv, _mount_point);
-            if (ret != ESP_OK) {
-                 ESP_LOGE(TAG, "Failed to unmount drive. (%s)", esp_err_to_name(ret));
-            }
-            _cardState = CardState::NotPresent;
-            break;
         }
-    }
 
-    vTaskDelete(Disk::_taskHandle);
+        Buzzer::getInstance().play(Buzzer::Sounds::Connection);
+        _cardState = CardState::Present;
+        break;
+    case CardState::NotReadable:
+    case CardState::Present:
+        // nothing to do but wait until the user removed their card
+        ret = sdmmc_get_status(&_card);
+        if (ret != ESP_OK) {
+            ESP_LOGI(TAG, "SD card removed");
+
+            Buzzer::getInstance().play(Buzzer::Sounds::Disconnection);
+            _cardState = CardState::Failed;
+        }
+
+        break;
+    case CardState::Failed:
+        // do stuff to unmount the cart and deinit some things
+
+        ESP_LOGI(TAG, "Unmounting SD card");
+        ret = _unmount(&_card, pdrv, _mount_point);
+        if (ret != ESP_OK) {
+                ESP_LOGE(TAG, "Failed to unmount drive. (%s)", esp_err_to_name(ret));
+        }
+        _cardState = CardState::NotPresent;
+        break;
+    }
 }

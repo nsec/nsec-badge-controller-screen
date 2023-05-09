@@ -5,6 +5,7 @@
 #include "freertos/task.h"
 #include "esp_chip_info.h"
 #include "esp_flash.h"
+#include "esp_log.h"
 #include "nvs_flash.h"
 #include "console.h"
 #include "neopixel.h"
@@ -12,6 +13,7 @@
 #include "display.h"
 #include "disk.h"
 #include "save.h"
+#include "wifi.h"
 #include "badge/mesh/main.h"
 
 #define TAG "main"
@@ -62,11 +64,13 @@ extern "C" void app_main(void) {
     Buzzer::getInstance().init();
     Buzzer::getInstance().play(Buzzer::Sounds::Mode1);
 
-    Display::getInstance().init();
-
     Disk::getInstance().init();
 
     //BadgeMesh::getInstance().init();
+
+    Wifi::getInstance().init();
+
+    Display::getInstance().init();
 
     console_create_task();
 }

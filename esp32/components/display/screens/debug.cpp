@@ -17,6 +17,7 @@
 #include "save.h"
 #include "neopixel.h"
 #include "disk.h"
+#include "wifi.h"
 #include "badge/mesh/ops/neopixel.h"
 #include "badge/mesh/ops/set_name.h"
 #include "badge/mesh/ops/partyline.h"
@@ -26,6 +27,7 @@ static const char *TAG = "display";
 static lv_obj_t *tab_view;
 static lv_obj_t *kb;
 
+static lv_obj_t *mesh_info_container, *mesh_operations_container;
 static lv_obj_t *wifi_info_container;
 static lv_obj_t *disk_info_container;
 static lv_obj_t *mood_controls_container;
@@ -82,6 +84,14 @@ struct sd_info_table {
     { .name = "Name", .value = NULL },
     { .name = "Capacity", .value = NULL },
     { .name = "Mount point", .value = NULL },
+};
+
+struct wifi_info_table {
+    const char *name;
+    lv_obj_t *value;
+} wifi_info_table[wifi_info_rows::count] = {
+    { .name = "SSID", .value = NULL },
+    { .name = "Password", .value = NULL },
 };
 
 static const char *FX_mode_names[] = {
@@ -147,6 +157,46 @@ static void toggle_tab(debug_tabs_t *tab, bool enabled)
     return;
 }
 
+static void mesh_enable_event(lv_obj_t *sw, lv_event_t event)
+{
+    switch(event) {
+        case LV_EVENT_VALUE_CHANGED:
+        {
+            bool enabled = lv_switch_get_state(sw);
+            if(enabled == debug_tabs[debug_tab::mesh].enabled) {
+                break;
+            }
+
+            toggle_tab(&debug_tabs[debug_tab::mesh], enabled);
+            lv_obj_set_hidden(mesh_info_container, !debug_tabs[debug_tab::mesh].enabled);
+            lv_obj_set_hidden(mesh_operations_container, !debug_tabs[debug_tab::mesh].enabled);
+
+            if(enabled) {
+                lv_obj_add_state(debug_tabs[debug_tab::wifi].enable_switch, LV_STATE_DISABLED);
+                lv_obj_clear_state(debug_tabs[debug_tab::mood].enable_switch, LV_STATE_DISABLED);
+                lv_obj_clear_state(debug_tabs[debug_tab::chat].enable_switch, LV_STATE_DISABLED);
+            } else {
+                lv_obj_clear_state(debug_tabs[debug_tab::wifi].enable_switch, LV_STATE_DISABLED);
+                lv_obj_add_state(debug_tabs[debug_tab::mood].enable_switch, LV_STATE_DISABLED);
+                lv_obj_add_state(debug_tabs[debug_tab::chat].enable_switch, LV_STATE_DISABLED);
+                toggle_tab(&debug_tabs[debug_tab::mood], false);
+                toggle_tab(&debug_tabs[debug_tab::chat], false);
+                lv_obj_set_hidden(mood_controls_container, true);
+                lv_obj_set_hidden(chat_container, true);
+            }
+
+            if(enabled) {
+                BadgeMesh::getInstance().enable();
+            } else {
+                BadgeMesh::getInstance().disable();
+            }
+            break;
+        }
+    }
+
+    return;
+}
+
 static lv_obj_t *tab_mesh_init(debug_tabs_t *tab)
 {
     lv_obj_t *h, *sw;
@@ -154,8 +204,18 @@ static lv_obj_t *tab_mesh_init(debug_tabs_t *tab)
 
     lv_page_set_scrl_layout(parent, LV_LAYOUT_PRETTY_MID);
 
-    // Mesh info container
+    // Enable switch
     h = create_container(parent);
+    sw = tab->enable_switch = create_switch_with_label(h, "Enabled", tab->enabled);
+    lv_obj_set_event_cb(sw, mesh_enable_event);
+
+    if(debug_tabs[debug_tab::wifi].enabled) {
+        lv_obj_set_state(sw, LV_STATE_DISABLED);
+    }
+
+    // Mesh info container
+    h = mesh_info_container = create_container(parent);
+    lv_obj_set_hidden(h, !tab->enabled);
     for(int i=0; i<mesh_info_rows::count; i++) {
         mesh_info_table[i].value = create_kv_row_labels(h, mesh_info_table[i].name);
     }
@@ -167,7 +227,8 @@ static lv_obj_t *tab_mesh_init(debug_tabs_t *tab)
     lv_label_set_text_fmt(mesh_info_table[mesh_info_rows::net_idx].value, "%d", badge_network_info.net_idx);
     lv_label_set_text_fmt(mesh_info_table[mesh_info_rows::app_idx].value, "%d", badge_network_info.app_idx);
 
-    h = create_container(parent, "BLE mesh operations");
+    h = mesh_operations_container = create_container(parent, "BLE mesh operations");
+    lv_obj_set_hidden(h, !tab->enabled);
     for(int i=0; mesh_callbacks[i].cb != NULL; i++) {
         if(mesh_callbacks[i].op == OP_VND_SET_NAME)
             /* dont show this command to delay chaos a little further */
@@ -186,8 +247,27 @@ static void wifi_enable_event(lv_obj_t *sw, lv_event_t event)
         case LV_EVENT_VALUE_CHANGED:
         {
             bool enabled = lv_switch_get_state(sw);
+            if(enabled == debug_tabs[debug_tab::wifi].enabled) {
+                break;
+            }
+
             toggle_tab(&debug_tabs[debug_tab::wifi], enabled);
             lv_obj_set_hidden(wifi_info_container, !debug_tabs[debug_tab::wifi].enabled);
+
+            if(enabled) {
+                lv_obj_add_state(debug_tabs[debug_tab::mesh].enable_switch, LV_STATE_DISABLED);
+            } else {
+                lv_obj_clear_state(debug_tabs[debug_tab::mesh].enable_switch, LV_STATE_DISABLED);
+            }
+
+            if(enabled) {
+                Wifi::getInstance().enable();
+
+                lv_label_set_text(wifi_info_table[wifi_info_rows::ssid].value, Wifi::getInstance().getSSID());
+                lv_label_set_text(wifi_info_table[wifi_info_rows::password].value, Wifi::getInstance().getPassword());
+            } else {
+                Wifi::getInstance().disable();
+            }
             break;
         }
     }
@@ -209,12 +289,22 @@ static lv_obj_t *tab_wifi_init(debug_tabs_t *tab)
     sw = tab->enable_switch = create_switch_with_label(h, "Enabled", tab->enabled);
     lv_obj_set_event_cb(sw, wifi_enable_event);
 
+    if(debug_tabs[debug_tab::mesh].enabled) {
+        lv_obj_set_state(sw, LV_STATE_DISABLED);
+    }
+
     // Information container
     h = wifi_info_container = create_container(parent);
     lv_obj_set_hidden(h, !tab->enabled);
+    for(int i=0; i<wifi_info_rows::count; i++) {
+        wifi_info_table[i].value = create_kv_row_labels(h, wifi_info_table[i].name);
+        lv_label_set_text(wifi_info_table[i].value, "-");
+    }
 
-    create_kv_row_labels(h, "SSID");
-    create_kv_row_labels(h, "Password");
+    if(Wifi::getInstance().isEnabled()) {
+        lv_label_set_text(wifi_info_table[wifi_info_rows::ssid].value, Wifi::getInstance().getSSID());
+        lv_label_set_text(wifi_info_table[wifi_info_rows::password].value, Wifi::getInstance().getPassword());
+    }
 
     return parent;
 }
@@ -225,8 +315,13 @@ static void disk_enable_event(lv_obj_t *sw, lv_event_t event)
         case LV_EVENT_VALUE_CHANGED:
         {
             bool enabled = lv_switch_get_state(sw);
+            if(enabled == debug_tabs[debug_tab::disk].enabled) {
+                break;
+            }
+
             toggle_tab(&debug_tabs[debug_tab::disk], enabled);
             lv_obj_set_hidden(disk_info_container, !debug_tabs[debug_tab::disk].enabled);
+            lv_obj_set_hidden(disk_explorer, !debug_tabs[debug_tab::disk].enabled);
 
             if(enabled) {
                 Disk::getInstance().enable();
@@ -370,8 +465,13 @@ static void mood_enable_event(lv_obj_t *sw, lv_event_t event)
         case LV_EVENT_VALUE_CHANGED:
         {
             bool enabled = lv_switch_get_state(sw);
+            if(enabled == debug_tabs[debug_tab::mood].enabled) {
+                break;
+            }
+
             toggle_tab(&debug_tabs[debug_tab::mood], enabled);
             lv_obj_set_hidden(mood_controls_container, !debug_tabs[debug_tab::mood].enabled);
+
             break;
         }
     }
@@ -447,6 +547,10 @@ static lv_obj_t *tab_mood_init(debug_tabs_t *tab)
     sw = tab->enable_switch = create_switch_with_label(h, "Enabled", tab->enabled);
     lv_obj_set_event_cb(sw, mood_enable_event);
 
+    if(!debug_tabs[debug_tab::mesh].enabled) {
+        lv_obj_set_state(sw, LV_STATE_DISABLED);
+    }
+
     // Controls container
     h = mood_controls_container = create_container(parent, NULL, LV_LAYOUT_PRETTY_MID);
     lv_obj_set_hidden(h, !tab->enabled);
@@ -495,8 +599,13 @@ static void chat_enable_event(lv_obj_t *sw, lv_event_t event)
         case LV_EVENT_VALUE_CHANGED:
         {
             bool enabled = lv_switch_get_state(sw);
+            if(enabled == debug_tabs[debug_tab::chat].enabled) {
+                break;
+            }
+
             toggle_tab(&debug_tabs[debug_tab::chat], enabled);
             lv_obj_set_hidden(chat_container, !debug_tabs[debug_tab::chat].enabled);
+
             break;
         }
     }
@@ -567,6 +676,10 @@ static lv_obj_t *tab_chat_init(debug_tabs_t *tab)
     sw = tab->enable_switch = create_switch_with_label(h, "Enabled", tab->enabled);
     lv_obj_set_event_cb(sw, chat_enable_event);
 
+    if(!debug_tabs[debug_tab::mesh].enabled) {
+        lv_obj_set_state(sw, LV_STATE_DISABLED);
+    }
+
     // Messages container
     h = chat_container = create_container(parent);
     lv_obj_set_hidden(h, !tab->enabled);
@@ -598,10 +711,17 @@ void screen_debug_init()
 
     tab_view = lv_tabview_create(lv_scr_act(), NULL);
 
-    debug_tabs[0].enabled = true;
-    for(int i=1 /* skip mesh tab, always active */; i<debug_tab::count; i++) {
+    for(int i=0; i<debug_tab::count; i++) {
         debug_tabs[i].id = i;
         debug_tabs[i].enabled = Save::save_data.debug_feature_enabled[i];
+    }
+
+    /* ensure UI consisency */
+    if(debug_tabs[debug_tab::mesh].enabled) {
+        debug_tabs[debug_tab::wifi].enabled = false;
+    } else {
+        debug_tabs[debug_tab::mood].enabled = false;
+        debug_tabs[debug_tab::chat].enabled = false;
     }
 
     for(int i=0; i<debug_tab::count; i++) {
@@ -649,22 +769,24 @@ bool partyline_each_cb(partyline_msg_t *msg, chat_history_buffer_t *buf)
 
 void screen_debug_loop()
 {
-    // update mesh info
-    lv_label_set_text(mesh_info_table[mesh_info_rows::name].value, (char *)&badge_network_info.name);
-    lv_label_set_text_fmt(mesh_info_table[mesh_info_rows::seq_num].value, "%lu", bt_mesh.seq);
+    if(debug_tabs[debug_tab::mesh].enabled) {
+        // update mesh info
+        lv_label_set_text(mesh_info_table[mesh_info_rows::name].value, (char *)&badge_network_info.name);
+        lv_label_set_text_fmt(mesh_info_table[mesh_info_rows::seq_num].value, "%lu", bt_mesh.seq);
 
-    if(BadgeMesh::getInstance().networkTimeIsValid()) {
-        struct tm tm;
-        time_t t;
+        if(BadgeMesh::getInstance().networkTimeIsValid()) {
+            struct tm tm;
+            time_t t;
 
-        BadgeMesh::getInstance().networkTimeGet(&t);
-        gmtime_r(&t, &tm);
-        lv_label_set_text_fmt(mesh_info_table[mesh_info_rows::network_time].value, "%02d:%02d:%02d", tm.tm_hour, tm.tm_min, tm.tm_sec);
-    } else {
-        lv_label_set_text(mesh_info_table[mesh_info_rows::network_time].value, "(not available)");
+            BadgeMesh::getInstance().networkTimeGet(&t);
+            gmtime_r(&t, &tm);
+            lv_label_set_text_fmt(mesh_info_table[mesh_info_rows::network_time].value, "%02d:%02d:%02d", tm.tm_hour, tm.tm_min, tm.tm_sec);
+        } else {
+            lv_label_set_text(mesh_info_table[mesh_info_rows::network_time].value, "(not available)");
+        }
     }
 
-    if(debug_tabs[debug_tab::mood].enabled) {
+    if(debug_tabs[debug_tab::mood].enabled && debug_tabs[debug_tab::mesh].enabled) {
         TickType_t now = xTaskGetTickCount();
         TickType_t elapsed_ticks = now - last_mood_beacon_at;
         uint32_t elapsed_time_ms = (uint32_t)((elapsed_ticks * 1000) / configTICK_RATE_HZ);
@@ -683,7 +805,7 @@ void screen_debug_loop()
         }
     }
 
-    if(debug_tabs[debug_tab::chat].enabled) {
+    if(debug_tabs[debug_tab::chat].enabled && debug_tabs[debug_tab::mesh].enabled) {
         if(partyline_received_since(chat_last_received_message)) {
             chat_history_buffer_t buf = {
                 .most_recent = 0,

@@ -23,6 +23,8 @@
 #include "display.h"
 #include "buzzer.h"
 #include "save.h"
+#include "disk.h"
+#include "badge/mesh/main.h"
 #include "screens/splash.h"
 #include "screens/debug.h"
 #include "screens/assistant.h"
@@ -76,9 +78,6 @@ void Display::init()
     _initialize_lv_buffers();
 
     xTaskCreatePinnedToCore((TaskFunction_t)&(Display::task), "display", 4096, this, 5, &Display::_taskHandle, 1);
-
-    // wait for task to start running
-    vTaskDelay(500 / portTICK_PERIOD_MS);
 }
 
 static void lv_tick_task(void *arg) {
@@ -181,6 +180,9 @@ void Display::taskHandler()
                     screen_assistant_loop();
                 }
             }
+
+            Disk::getInstance().taskHandler();
+            BadgeMesh::getInstance().taskHandler();
 
             lv_task_handler();
             xSemaphoreGive(xGuiSemaphore);

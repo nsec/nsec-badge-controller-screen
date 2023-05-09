@@ -1,3 +1,5 @@
+#include <errno.h>
+
 #include <esp_system.h>
 #include <esp_log.h>
 #include <esp_random.h>
@@ -115,21 +117,21 @@ static esp_err_t save_name(char *name)
     // Open NVS namespace
     err = nvs_open(MESH_NVS_NAMESPACE, NVS_READWRITE, &handle);
     if (err != ESP_OK) {
-		ESP_LOGE(TAG, "%s: failed to open nvs (err %d)", __func__, err);
+		ESP_LOGE(TAG, "%s: failed to open nvs (err %s)", __func__, esp_err_to_name(err));
         return err;
     }
 
     // Write data to NVS
     err = nvs_set_str(handle, MESH_NVS_NODE_NAME_KEY, name);
     if (err != ESP_OK) {
-		ESP_LOGE(TAG, "%s: failed to set str (err %d)", __func__, err);
+		ESP_LOGE(TAG, "%s: failed to set str (err %s)", __func__, esp_err_to_name(err));
         return err;
     }
 
     // Commit changes to NVS
     err = nvs_commit(handle);
     if (err != ESP_OK) {
-		ESP_LOGE(TAG, "%s: failed to commit (err %d)", __func__, err);
+		ESP_LOGE(TAG, "%s: failed to commit (err %s)", __func__, esp_err_to_name(err));
         return err;
     }
 
@@ -156,7 +158,7 @@ static esp_err_t load_name(char *name, size_t *length)
         // This is expected before name is actually set, we can silently return an error.
         return ESP_FAIL;
     } else if (err != ESP_OK) {
-		ESP_LOGE(TAG, "%s: failed to open nvs (err %04x)", __func__, err);
+		ESP_LOGE(TAG, "%s: failed to open nvs (err %s)", __func__, esp_err_to_name(err));
         return err;
     }
 
@@ -167,7 +169,7 @@ static esp_err_t load_name(char *name, size_t *length)
         // This is expected before key is actually set, we can silently return an error.
         return ESP_FAIL;
     } if (err != ESP_OK) {
-		ESP_LOGE(TAG, "%s: failed to get str (err %04x)", __func__, err);
+		ESP_LOGE(TAG, "%s: failed to get str (err %s)", __func__, esp_err_to_name(err));
         return err;
     }
 
@@ -189,7 +191,7 @@ esp_err_t mesh_config_name_updated(char *name)
     snprintf(badge_network_info.name, sizeof(badge_network_info.name), name);
     err = save_name(name);
     if(err != ESP_OK) {
-		ESP_LOGE(TAG, "New name was not saved (err %d)", err);
+		ESP_LOGE(TAG, "New name was not saved (err %s)", esp_err_to_name(err));
         return err;
     }
 
@@ -204,21 +206,21 @@ esp_err_t save_node_addr(uint16_t addr)
     // Open NVS namespace
     err = nvs_open(MESH_NVS_NAMESPACE, NVS_READWRITE, &handle);
     if (err != ESP_OK) {
-		ESP_LOGE(TAG, "%s: failed to open nvs (err %d)", __func__, err);
+		ESP_LOGE(TAG, "%s: failed to open nvs (err %s)", __func__, esp_err_to_name(err));
         return err;
     }
 
     // Write data to NVS
     err = nvs_set_u16(handle, MESH_NVS_NODE_ADDR_KEY, addr);
     if (err != ESP_OK) {
-		ESP_LOGE(TAG, "%s: failed to set str (err %d)", __func__, err);
+		ESP_LOGE(TAG, "%s: failed to set str (err %s)", __func__, esp_err_to_name(err));
         return err;
     }
 
     // Commit changes to NVS
     err = nvs_commit(handle);
     if (err != ESP_OK) {
-		ESP_LOGE(TAG, "%s: failed to commit (err %d)", __func__, err);
+		ESP_LOGE(TAG, "%s: failed to commit (err %s)", __func__, esp_err_to_name(err));
         return err;
     }
 
@@ -242,7 +244,7 @@ esp_err_t load_node_addr(uint16_t *addr)
         // This is expected before name is actually set, we can silently return an error.
         return ESP_FAIL;
     } else if (err != ESP_OK) {
-		ESP_LOGE(TAG, "%s: failed to open nvs (err %04x)", __func__, err);
+		ESP_LOGE(TAG, "%s: failed to open nvs (err %s)", __func__, esp_err_to_name(err));
         return err;
     }
 
@@ -253,7 +255,7 @@ esp_err_t load_node_addr(uint16_t *addr)
         // This is expected before key is actually set, we can silently return an error.
         return ESP_FAIL;
     } else if (err != ESP_OK) {
-		ESP_LOGE(TAG, "%s: failed to get u16 (err %04x)", __func__, err);
+		ESP_LOGE(TAG, "%s: failed to get u16 (err %s)", __func__, esp_err_to_name(err));
         return err;
     }
 
@@ -278,21 +280,21 @@ esp_err_t mesh_sequence_number_changed()
     // Open NVS namespace
     err = nvs_open(MESH_NVS_NAMESPACE, NVS_READWRITE, &handle);
     if (err != ESP_OK) {
-		ESP_LOGE(TAG, "%s: failed to open nvs (err %d)", __func__, err);
+		ESP_LOGE(TAG, "%s: failed to open nvs (err %s)", __func__, esp_err_to_name(err));
         return err;
     }
 
     // Write data to NVS
     err = nvs_set_u32(handle, MESH_NVS_SEQUENCE_NUMBER, bt_mesh.seq);
     if (err != ESP_OK) {
-		ESP_LOGE(TAG, "%s: failed to set str (err %d)", __func__, err);
+		ESP_LOGE(TAG, "%s: failed to set str (err %s)", __func__, esp_err_to_name(err));
         return err;
     }
 
     // Commit changes to NVS
     err = nvs_commit(handle);
     if (err != ESP_OK) {
-		ESP_LOGE(TAG, "%s: failed to commit (err %d)", __func__, err);
+		ESP_LOGE(TAG, "%s: failed to commit (err %s)", __func__, esp_err_to_name(err));
         return err;
     }
 
@@ -318,7 +320,7 @@ esp_err_t mesh_load_sequence_number()
         // This is expected before name is actually set, we can silently return an error.
         return ESP_FAIL;
     } else if (err != ESP_OK) {
-		ESP_LOGE(TAG, "%s: failed to open nvs (err %04x)", __func__, err);
+		ESP_LOGE(TAG, "%s: failed to open nvs (err %s)", __func__, esp_err_to_name(err));
         return err;
     }
 
@@ -329,7 +331,7 @@ esp_err_t mesh_load_sequence_number()
         // This is expected before key is actually set, we can silently return an error.
         return ESP_FAIL;
     } else if (err != ESP_OK) {
-		ESP_LOGE(TAG, "%s: failed to get u16 (err %04x)", __func__, err);
+		ESP_LOGE(TAG, "%s: failed to get u16 (err %s)", __func__, esp_err_to_name(err));
         return err;
     }
 
@@ -355,19 +357,19 @@ esp_err_t mesh_configure_esp_ble_mesh()
 
     err = esp_ble_mesh_register_custom_model_callback(&mesh_custom_model_cb);
 	if (err) {
-		ESP_LOGE(TAG, "esp_ble_mesh_register_custom_model_callback() failed (err %d)", err);
+		ESP_LOGE(TAG, "esp_ble_mesh_register_custom_model_callback() failed (err %s)", esp_err_to_name(err));
 		return err;
 	}
 
 	err = esp_ble_mesh_init(&prov, &comp);
 	if (err) {
-		ESP_LOGE(TAG, "esp_ble_mesh_init() failed (err %d)", err);
+		ESP_LOGE(TAG, "esp_ble_mesh_init() failed (err %s)", esp_err_to_name(err));
 		return err;
 	}
 
     err = esp_ble_mesh_client_model_init(cli_vnd_model);
     if (err != ESP_OK) {
-        ESP_LOGE(TAG, "%s: Failed to initialize fast prov client model", __func__);
+        ESP_LOGE(TAG, "%s: Failed to initialize fast prov client model (%s)", __func__, esp_err_to_name(err));
         return err;
     }
 
@@ -411,11 +413,29 @@ esp_err_t mesh_configure_esp_ble_mesh()
 
     err = mesh_device_auto_enter_network(&badge_network_info);
     if (err != ESP_OK) {
-        ESP_LOGE(TAG, "%s: Failed to auto-enter network", __func__);
+        ESP_LOGE(TAG, "%s: Failed to auto-enter network (%s)", __func__, esp_err_to_name(err));
         return err;
     }
 
 	ESP_LOGV(TAG, "%s done", __func__);
+
+    return ESP_OK;
+}
+
+esp_err_t mesh_deconfigure_esp_ble_mesh()
+{
+    esp_err_t ret;
+    esp_ble_mesh_deinit_param_t param = { .erase_flash = false };
+
+    ret = esp_ble_mesh_client_model_deinit(cli_vnd_model);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "%s: esp_ble_mesh_client_model_deinit failed (%s)", __func__, esp_err_to_name(ret));
+    }
+
+    ret = esp_ble_mesh_deinit(&param);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "%s: esp_ble_mesh_client_model_deinit failed (%s)", __func__, esp_err_to_name(ret));
+    }
 
     return ESP_OK;
 }

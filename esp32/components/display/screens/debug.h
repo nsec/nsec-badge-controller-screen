@@ -48,6 +48,15 @@ enum {
 };
 }
 
+namespace wifi_info_rows {
+enum {
+    ssid = 0,
+    password,
+
+    count // keep last
+};
+}
+
 void screen_debug_init();
 void screen_debug_loop();
 

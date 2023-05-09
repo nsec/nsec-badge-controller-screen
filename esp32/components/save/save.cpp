@@ -25,6 +25,14 @@ SaveData Save::save_data = {
 #endif
     .debug_pin = 0,
 
+    .debug_feature_enabled = {
+        true, // only mesh by default
+        false,
+        false,
+        false,
+        false,
+    },
+
     .mood_brightness = 64,
     .mood_mode = 0,
     .mood_color = {
@@ -33,6 +41,9 @@ SaveData Save::save_data = {
             .blue = 0b11111,
         },
     },
+
+    .wifi_ssid = {0},
+    .wifi_password = {0},
 };
 
 esp_err_t Save::write_save()

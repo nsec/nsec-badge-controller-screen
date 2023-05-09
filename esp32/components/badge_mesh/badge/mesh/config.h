@@ -23,6 +23,7 @@ extern esp_ble_mesh_model_t *srv_vnd_model;
 extern badge_network_info_t badge_network_info;
 
 esp_err_t mesh_configure_esp_ble_mesh();
+esp_err_t mesh_deconfigure_esp_ble_mesh();
 
 /*
     Call this method when a new name has been assigned to this node.
