@@ -1,6 +1,6 @@
-idf_component_register(SRCS "modbus.c"
+idf_component_register(SRCS "modbus.cpp"
                 INCLUDE_DIRS "."
-                REQUIRES mb_example_common protocol_examples_common esp_wifi nvs_flash)
+                REQUIRES mb_example_common protocol_examples_common esp_wifi nvs_flash wifi)
 
 target_compile_options(${COMPONENT_LIB} PRIVATE "-Wno-format")
 

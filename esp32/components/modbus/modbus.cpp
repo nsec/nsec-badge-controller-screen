@@ -10,77 +10,6 @@
 
 static const char *TAG = "SLAVE_TEST";
 
-#if CONFIG_MB_MDNS_IP_RESOLVER
-
-#define MB_ID_BYTE0(id) ((uint8_t)(id))
-#define MB_ID_BYTE1(id) ((uint8_t)(((uint16_t)(id) >> 8) & 0xFF))
-#define MB_ID_BYTE2(id) ((uint8_t)(((uint32_t)(id) >> 16) & 0xFF))
-#define MB_ID_BYTE3(id) ((uint8_t)(((uint32_t)(id) >> 24) & 0xFF))
-
-#define MB_ID2STR(id) MB_ID_BYTE0(id), MB_ID_BYTE1(id), MB_ID_BYTE2(id), MB_ID_BYTE3(id)
-
-#if CONFIG_FMB_CONTROLLER_SLAVE_ID_SUPPORT
-#define MB_DEVICE_ID (uint32_t)CONFIG_FMB_CONTROLLER_SLAVE_ID
-#endif
-
-#define MB_SLAVE_ADDR (CONFIG_MB_SLAVE_ADDR)
-
-#define MB_MDNS_INSTANCE(pref) pref"mb_slave_tcp"
-
-// convert mac from binary format to string
-static inline char* gen_mac_str(const uint8_t* mac, char* pref, char* mac_str)
-{
-    sprintf(mac_str, "%s%02X%02X%02X%02X%02X%02X", pref, MAC2STR(mac));
-    return mac_str;
-}
-
-static inline char* gen_id_str(char* service_name, char* slave_id_str)
-{
-    sprintf(slave_id_str, "%s%02X%02X%02X%02X", service_name, MB_ID2STR(MB_DEVICE_ID));
-    return slave_id_str;
-}
-
-static inline char* gen_host_name_str(char* service_name, char* name)
-{
-    sprintf(name, "%s_%02X", service_name, MB_SLAVE_ADDR);
-    return name;
-}
-
-static void start_mdns_service(void)
-{
-    char temp_str[32] = {0};
-    uint8_t sta_mac[6] = {0};
-    ESP_ERROR_CHECK(esp_read_mac(sta_mac, ESP_MAC_WIFI_STA));
-    char* hostname = gen_host_name_str(MB_MDNS_INSTANCE(""), temp_str);
-    //initialize mDNS
-    ESP_ERROR_CHECK(mdns_init());
-    //set mDNS hostname (required if you want to advertise services)
-    ESP_ERROR_CHECK(mdns_hostname_set(hostname));
-    ESP_LOGI(TAG, "mdns hostname set to: [%s]", hostname);
-
-    //set default mDNS instance name
-    ESP_ERROR_CHECK(mdns_instance_name_set(MB_MDNS_INSTANCE("esp32_")));
-
-    //structure with TXT records
-    mdns_txt_item_t serviceTxtData[] = {
-        {"board","esp32"}
-    };
-
-    //initialize service
-    ESP_ERROR_CHECK(mdns_service_add(hostname, "_modbus", "_tcp", MB_MDNS_PORT, serviceTxtData, 1));
-    //add mac key string text item
-    ESP_ERROR_CHECK(mdns_service_txt_item_set("_modbus", "_tcp", "mac", gen_mac_str(sta_mac, "\0", temp_str)));
-    //add slave id key txt item
-    ESP_ERROR_CHECK( mdns_service_txt_item_set("_modbus", "_tcp", "mb_id", gen_id_str("\0", temp_str)));
-}
-
-static void stop_mdns_service(void)
-{
-    mdns_free();
-}
-
-#endif
-
 // Set register values into known state
 static void setup_reg_data(void)
 {
@@ -133,7 +62,7 @@ static void slave_operation_func(void *arg)
     // incremented each access cycle reaches the CHAN_DATA_MAX_VAL value.
     for(;holding_reg_params.holding_data0 < MB_CHAN_DATA_MAX_VAL;) {
         // Check for read/write events of Modbus master for certain events
-        mb_event_group_t event = mbc_slave_check_event(MB_READ_WRITE_MASK);
+        mb_event_group_t event = mbc_slave_check_event((mb_event_group_t)(MB_READ_MASK | MB_WRITE_MASK));
         const char* rw_str = (event & MB_READ_MASK) ? "READ" : "WRITE";
         // Filter events and process them accordingly
         if(event & (MB_EVENT_HOLDING_REG_WR | MB_EVENT_HOLDING_REG_RD)) {
@@ -193,31 +122,31 @@ static esp_err_t init_services(void)
       ESP_ERROR_CHECK(nvs_flash_erase());
       result = nvs_flash_init();
     }
-    MB_RETURN_ON_FALSE((result == ESP_OK), ESP_ERR_INVALID_STATE,
-                            TAG,
-                            "nvs_flash_init fail, returns(0x%x).",
-                            (uint32_t)result);
-    result = esp_netif_init();
-    ESP_LOGI(TAG, "AFTER ESP_NETIF_INIT");
-    MB_RETURN_ON_FALSE((result == ESP_OK), ESP_ERR_INVALID_STATE,
-                             TAG,
-                             "esp_netif_init fail, returns(0x%x).",
-                             (uint32_t)result);
-    result = esp_event_loop_create_default();
-    ESP_LOGI(TAG, "AFTER ESP_EVENT_LOOP_CREATE");
-    MB_RETURN_ON_FALSE((result == ESP_OK), ESP_ERR_INVALID_STATE,
-                            TAG,
-                            "esp_event_loop_create_default fail, returns(0x%x).",
-                            (uint32_t)result);
+    // MB_RETURN_ON_FALSE((result == ESP_OK), ESP_ERR_INVALID_STATE,
+    //                         TAG,
+    //                         "nvs_flash_init fail, returns(0x%x).",
+    //                         (uint32_t)result);
+    // result = esp_netif_init();
+    // ESP_LOGI(TAG, "AFTER ESP_NETIF_INIT");
+    // MB_RETURN_ON_FALSE((result == ESP_OK), ESP_ERR_INVALID_STATE,
+    //                          TAG,
+    //                          "esp_netif_init fail, returns(0x%x).",
+    //                          (uint32_t)result);
+    // result = esp_event_loop_create_default();
+    // ESP_LOGI(TAG, "AFTER ESP_EVENT_LOOP_CREATE");
+    // MB_RETURN_ON_FALSE((result == ESP_OK), ESP_ERR_INVALID_STATE,
+    //                         TAG,
+    //                         "esp_event_loop_create_default fail, returns(0x%x).",
+    //                         (uint32_t)result);
                             
-    // This helper function configures Wi-Fi or Ethernet, as selected in menuconfig.
-    // Read "Establishing Wi-Fi or Ethernet Connection" section in
-    // examples/protocols/README.md for more information about this function.
-    result = example_connect();
-    MB_RETURN_ON_FALSE((result == ESP_OK), ESP_ERR_INVALID_STATE,
-                                TAG,
-                                "example_connect fail, returns(0x%x).",
-                                (uint32_t)result);
+    // // This helper function configures Wi-Fi or Ethernet, as selected in menuconfig.
+    // // Read "Establishing Wi-Fi or Ethernet Connection" section in
+    // // examples/protocols/README.md for more information about this function.
+    // result = example_connect();
+    // MB_RETURN_ON_FALSE((result == ESP_OK), ESP_ERR_INVALID_STATE,
+    //                             TAG,
+    //                             "example_connect fail, returns(0x%x).",
+    //                             (uint32_t)result);
     return ESP_OK;
 }
 
@@ -245,9 +174,6 @@ static esp_err_t destroy_services(void)
                                 TAG,
                                 "nvs_flash_deinit fail, returns(0x%x).",
                                 (uint32_t)err);
-#if CONFIG_MB_MDNS_IP_RESOLVER
-    stop_mdns_service();
-#endif
     return err;
 }
 
@@ -265,7 +191,9 @@ static esp_err_t slave_init(mb_communication_info_t* comm_info)
                                 "mb controller initialization fail.");
 
     comm_info->ip_addr = NULL; // Bind to any address
-    comm_info->ip_netif_ptr = (void*)get_example_netif();
+    
+    comm_info->ip_netif_ptr = Wifi::getInstance().getNetifSta();
+    ESP_LOGE(TAG, "STA netif: %p", comm_info->ip_netif_ptr);
 
     // Setup communication parameters and start stack
     err = mbc_slave_setup((void*)comm_info);
@@ -371,12 +299,12 @@ static esp_err_t slave_destroy(void)
 // by external Modbus master host.
 void modbus_task(void *args)
 {
-    ESP_ERROR_CHECK(init_services());
+    //ESP_ERROR_CHECK(init_services());
 
     // Set UART log level
     esp_log_level_set(TAG, ESP_LOG_INFO);
 
-    mb_communication_info_t comm_info = { 0 };
+    mb_communication_info_t comm_info = { };
 
 #if !CONFIG_EXAMPLE_CONNECT_IPV6
     comm_info.ip_addr_type = MB_IPV4;

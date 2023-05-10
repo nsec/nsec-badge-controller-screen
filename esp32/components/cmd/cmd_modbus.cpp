@@ -18,7 +18,8 @@ static int mb_start(int argc, char **argv)
 
 void register_mb_start(void)
 {
-    const esp_console_cmd_t cmd = {
+    esp_console_cmd_t cmd = { };
+    cmd = {
         .command = "mb_start",
         .help = "Start Modbus",
         .hint = NULL,
@@ -36,7 +37,8 @@ static int mb_stop(int argc, char **argv)
 
 void register_mb_stop(void)
 {
-    const esp_console_cmd_t cmd = {
+    esp_console_cmd_t cmd = { };
+    cmd = {
         .command = "mb_stop",
         .help = "Stop Modbus",
         .hint = NULL,

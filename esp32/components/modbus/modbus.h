@@ -18,6 +18,7 @@
 #include "esp_event.h"
 #include "esp_log.h"
 #include "nvs_flash.h"
+#include "wifi.h"
 
 #include "mdns.h"
 #include "esp_netif.h"
@@ -55,7 +56,6 @@
                                                 | MB_EVENT_COILS_RD)
 #define MB_WRITE_MASK                       (MB_EVENT_HOLDING_REG_WR \
                                                 | MB_EVENT_COILS_WR)
-#define MB_READ_WRITE_MASK                  (MB_READ_MASK | MB_WRITE_MASK)
 
 static portMUX_TYPE param_lock = portMUX_INITIALIZER_UNLOCKED;
 

@@ -9,6 +9,7 @@
 #include "wifi.h"
 
 static const char *TAG = "wifi";
+static esp_netif_t *netif_sta = NULL;
 
 #define RAND_CHR (char)(esp_random() % 92 + 30)
 
@@ -57,6 +58,23 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base,
         ESP_LOGI(TAG, "station "MACSTR" leave, AID=%d",
                  MAC2STR(event->mac), event->aid);
     }
+}
+
+esp_err_t Wifi::wifiStaMode(void)
+{
+    wifi_config_t wifi_config = { };
+
+     memcpy(wifi_config.sta.ssid, Save::save_data.wifi_ssid,
+        sizeof(wifi_config.sta.ssid));
+    memcpy(wifi_config.sta.password, Save::save_data.wifi_password,
+                               sizeof(wifi_config.sta.password));
+
+    ESP_ERROR_CHECK( esp_wifi_set_mode(WIFI_MODE_APSTA) );
+    ESP_ERROR_CHECK( esp_wifi_set_config(WIFI_IF_STA, &wifi_config) );
+    ESP_ERROR_CHECK( esp_wifi_connect() );
+    ESP_LOGE(TAG, "Wifi connected");
+
+    return ESP_OK;
 }
 
 esp_err_t Wifi::enable()
@@ -112,7 +130,7 @@ esp_err_t Wifi::enable()
         goto fail;
     }
 
-    ret = esp_wifi_set_mode(WIFI_MODE_AP);
+    ret = esp_wifi_set_mode(WIFI_MODE_APSTA);
     if(ret != ESP_OK) {
         ESP_LOGE(TAG, "%s: Could not set wifi AP mode (%s)", __func__, esp_err_to_name(ret));
         goto fail;
@@ -127,6 +145,14 @@ esp_err_t Wifi::enable()
     ret = esp_wifi_start();
     if(ret != ESP_OK) {
         ESP_LOGE(TAG, "%s: Could not start wifi (%s)", __func__, esp_err_to_name(ret));
+        goto fail;
+    }
+    _netif_sta = esp_netif_create_default_wifi_sta();
+    assert(_netif_sta);
+
+    ret = wifiStaMode();
+    if(ret != ESP_OK) {
+        ESP_LOGE(TAG, "%s: Could not start wifi STA mode (%s)", __func__, esp_err_to_name(ret));
         goto fail;
     }
 
