@@ -60,6 +60,13 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base,
     }
 }
 
+static void example_handler_on_sta_got_ip(void *arg, esp_event_base_t event_base,
+                      int32_t event_id, void *event_data)
+{
+    ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
+    printf("Got IPv4 event: Interface \"%s\" address: " IPSTR, esp_netif_get_desc(event->esp_netif), IP2STR(&event->ip_info.ip));
+}
+
 esp_err_t Wifi::wifiStaMode(void)
 {
     wifi_config_t wifi_config = { };
@@ -70,6 +77,8 @@ esp_err_t Wifi::wifiStaMode(void)
                                sizeof(wifi_config.sta.password));
 
     ESP_ERROR_CHECK( esp_wifi_set_mode(WIFI_MODE_APSTA) );
+    esp_wifi_set_default_wifi_sta_handlers();
+    ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &example_handler_on_sta_got_ip, NULL));
     ESP_ERROR_CHECK( esp_wifi_set_config(WIFI_IF_STA, &wifi_config) );
     ESP_ERROR_CHECK( esp_wifi_connect() );
     ESP_LOGE(TAG, "Wifi connected");
@@ -115,14 +124,13 @@ esp_err_t Wifi::enable()
         goto fail;
     }
 
-    esp_netif_create_default_wifi_ap();
+    _netif_sta = esp_netif_create_default_wifi_ap();
 
     ret = esp_wifi_init(&cfg);
     if(ret != ESP_OK) {
         ESP_LOGE(TAG, "%s: Could not initialize wifi (%s)", __func__, esp_err_to_name(ret));
         goto fail;
     }
-
     ret = esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID,
         &wifi_event_handler, NULL, &event_handler_instance);
     if(ret != ESP_OK) {
@@ -130,7 +138,7 @@ esp_err_t Wifi::enable()
         goto fail;
     }
 
-    ret = esp_wifi_set_mode(WIFI_MODE_APSTA);
+    ret = esp_wifi_set_mode(WIFI_MODE_AP);
     if(ret != ESP_OK) {
         ESP_LOGE(TAG, "%s: Could not set wifi AP mode (%s)", __func__, esp_err_to_name(ret));
         goto fail;
@@ -147,14 +155,13 @@ esp_err_t Wifi::enable()
         ESP_LOGE(TAG, "%s: Could not start wifi (%s)", __func__, esp_err_to_name(ret));
         goto fail;
     }
-    _netif_sta = esp_netif_create_default_wifi_sta();
     assert(_netif_sta);
 
-    ret = wifiStaMode();
-    if(ret != ESP_OK) {
-        ESP_LOGE(TAG, "%s: Could not start wifi STA mode (%s)", __func__, esp_err_to_name(ret));
-        goto fail;
-    }
+    // //ret = wifiStaMode();
+    // //if(ret != ESP_OK) {
+    //     ESP_LOGE(TAG, "%s: Could not start wifi STA mode (%s)", __func__, esp_err_to_name(ret));
+    //     goto fail;
+    // }
 
     _state = State::Enabled;
 
