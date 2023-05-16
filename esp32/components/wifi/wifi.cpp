@@ -1,19 +1,30 @@
 #include <esp_system.h>
 #include <esp_log.h>
 #include <esp_mac.h>
+#include <esp_wifi.h>
+#include <esp_netif.h>
 
 #include "lwip/err.h"
 #include "lwip/sys.h"
+#include "lwip/lwip_napt.h"
+#include "dhcpserver/dhcpserver.h"
+#include "esp_wifi_netif.h"
 
 #include "save.h"
 #include "wifi.h"
+#include "modbus.h"
 
 static const char *TAG = "wifi";
-static esp_netif_t *netif_sta = NULL;
 
-#define RAND_CHR (char)(esp_random() % 92 + 30)
+#define RAND_CHR (char)(esp_random() % 60 + 0x30)
 
 static esp_event_handler_instance_t event_handler_instance;
+
+const esp_netif_ip_info_t subnet_ip = {
+        .ip = { .addr = ESP_IP4TOADDR( 192, 168, 4, 1) },
+        .netmask = { .addr = ESP_IP4TOADDR( 255, 255, 255, 0) },
+        .gw = { .addr = ESP_IP4TOADDR( 192, 168, 4, 1) },
+};
 
 static bool wifi_config_saved()
 {
@@ -49,6 +60,7 @@ void Wifi::init()
 static void wifi_event_handler(void* arg, esp_event_base_t event_base,
                                     int32_t event_id, void* event_data)
 {
+
     if (event_id == WIFI_EVENT_AP_STACONNECTED) {
         wifi_event_ap_staconnected_t* event = (wifi_event_ap_staconnected_t*) event_data;
         ESP_LOGI(TAG, "station "MACSTR" join, AID=%d",
@@ -57,6 +69,9 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base,
         wifi_event_ap_stadisconnected_t* event = (wifi_event_ap_stadisconnected_t*) event_data;
         ESP_LOGI(TAG, "station "MACSTR" leave, AID=%d",
                  MAC2STR(event->mac), event->aid);
+    }
+    else {
+        ESP_LOGI(TAG, "%s: other event %ld", __func__, event_id);
     }
 }
 
@@ -83,6 +98,17 @@ esp_err_t Wifi::wifiStaMode(void)
     ESP_ERROR_CHECK( esp_wifi_connect() );
     ESP_LOGE(TAG, "Wifi connected");
 
+    return ESP_OK;
+}
+
+static esp_err_t set_dhcps_dns(esp_netif_t *netif, uint32_t addr)
+{
+    esp_netif_dns_info_t dns;
+    dns.ip.u_addr.ip4.addr = addr;
+    dns.ip.type = ESP_IPADDR_TYPE_V4;
+    dhcps_offer_t dhcps_dns_value = OFFER_DNS;
+    ESP_ERROR_CHECK(esp_netif_dhcps_option(netif, ESP_NETIF_OP_SET, ESP_NETIF_DOMAIN_NAME_SERVER, &dhcps_dns_value, sizeof(dhcps_dns_value)));
+    ESP_ERROR_CHECK(esp_netif_set_dns_info(netif, ESP_NETIF_DNS_MAIN, &dns));
     return ESP_OK;
 }
 
@@ -124,13 +150,17 @@ esp_err_t Wifi::enable()
         goto fail;
     }
 
-    _netif_sta = esp_netif_create_default_wifi_ap();
-
     ret = esp_wifi_init(&cfg);
     if(ret != ESP_OK) {
         ESP_LOGE(TAG, "%s: Could not initialize wifi (%s)", __func__, esp_err_to_name(ret));
         goto fail;
     }
+    ret = esp_wifi_set_country_code("CA", false);
+    if(ret != ESP_OK) {
+        ESP_LOGE(TAG, "%s: Could not set country code (%s)", __func__, esp_err_to_name(ret));
+        goto fail;
+    }
+
     ret = esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID,
         &wifi_event_handler, NULL, &event_handler_instance);
     if(ret != ESP_OK) {
@@ -150,18 +180,19 @@ esp_err_t Wifi::enable()
         goto fail;
     }
 
+    _netif_ap = esp_netif_create_default_wifi_ap();
+    assert(_netif_ap);
+
+    set_dhcps_dns(_netif_ap, ESP_IP4TOADDR( 8, 8, 8, 8 ));
+    ip_napt_enable(subnet_ip.ip.addr, 1);
+
     ret = esp_wifi_start();
     if(ret != ESP_OK) {
         ESP_LOGE(TAG, "%s: Could not start wifi (%s)", __func__, esp_err_to_name(ret));
         goto fail;
     }
-    assert(_netif_sta);
 
-    // //ret = wifiStaMode();
-    // //if(ret != ESP_OK) {
-    //     ESP_LOGE(TAG, "%s: Could not start wifi STA mode (%s)", __func__, esp_err_to_name(ret));
-    //     goto fail;
-    // }
+    modbus_start(_netif_ap);
 
     _state = State::Enabled;
 
@@ -184,6 +215,8 @@ esp_err_t Wifi::disable()
     }
 
     _enabled = false;
+
+    modbus_stop();
 
     ret = esp_wifi_stop();
     if(ret != ESP_OK) {

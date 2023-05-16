@@ -18,14 +18,11 @@
 #include "esp_event.h"
 #include "esp_log.h"
 #include "nvs_flash.h"
-#include "wifi.h"
 
-#include "mdns.h"
 #include "esp_netif.h"
 #include "protocol_examples_common.h"
 
-#include "mbcontroller.h"       // for mbcontroller defines and api
-#include "modbus_params.h"      // for modbus parameters structures
+#include <modbus_params.h>      // for modbus parameters structures
 
 #define MB_TCP_PORT_NUMBER      (CONFIG_FMB_TCP_PORT_DEFAULT)
 #define MB_MDNS_PORT            (502)
@@ -65,8 +62,9 @@ static portMUX_TYPE param_lock = portMUX_INITIALIZER_UNLOCKED;
 extern "C" {
 #endif
 
-void modbus_task(void *parm);
-void mobdbus_stop(void);
+void modbus_start(esp_netif_t *netif);
+void modbus_work();
+void modbus_stop(void);
 
 #ifdef __cplusplus
 }
