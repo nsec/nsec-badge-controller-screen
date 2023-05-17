@@ -33,6 +33,7 @@ class Wifi
     bool _enabled;
     State _state;
     wifi_config_t _config;
+    esp_netif_t* _netif_ap;
 
   public:
     Wifi(Wifi const &) = delete;
@@ -42,11 +43,13 @@ class Wifi
 
     esp_err_t enable();
     esp_err_t disable();
+    esp_err_t wifiStaMode();
 
     State getState() { return _state; }
     bool isEnabled() { return _enabled; }
     const char *getSSID() { return (const char *)&_config.ap.ssid; }
     const char *getPassword() { return (const char *)&_config.ap.password; }
+    esp_netif_t* getNetif() {return _netif_ap;}
 };
 
 #ifdef __cplusplus

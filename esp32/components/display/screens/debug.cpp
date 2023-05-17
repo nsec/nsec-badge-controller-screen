@@ -18,6 +18,7 @@
 #include "neopixel.h"
 #include "disk.h"
 #include "wifi.h"
+#include "modbus.h"
 #include "badge/mesh/ops/neopixel.h"
 #include "badge/mesh/ops/set_name.h"
 #include "badge/mesh/ops/partyline.h"
@@ -855,6 +856,10 @@ void screen_debug_loop()
 
             disk_info_displayed = false;
         }
+    }
+
+    if(debug_tabs[debug_tab::wifi].enabled) {
+        modbus_work();
     }
 
     return;
