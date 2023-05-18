@@ -117,6 +117,7 @@ bool mood_changed; // used to refresh mood imediately when UI is interacted with
 bool disk_info_displayed = false;
 static char disk_current_path[1024];
 static lv_obj_t *disk_list, *disk_explorer, *disk_path_value;
+static lv_obj_t *mesh_warning_label, *wifi_warning_label, *mood_warning_label, *chat_warning_label;
 
 static void popup(const char *msg)
 {
@@ -176,6 +177,9 @@ static void mesh_enable_event(lv_obj_t *sw, lv_event_t event)
                 lv_obj_add_state(debug_tabs[debug_tab::wifi].enable_switch, LV_STATE_DISABLED);
                 lv_obj_clear_state(debug_tabs[debug_tab::mood].enable_switch, LV_STATE_DISABLED);
                 lv_obj_clear_state(debug_tabs[debug_tab::chat].enable_switch, LV_STATE_DISABLED);
+                lv_obj_set_hidden(wifi_warning_label, false);
+                lv_obj_set_hidden(mood_warning_label, true);
+                lv_obj_set_hidden(chat_warning_label, true);
             } else {
                 lv_obj_clear_state(debug_tabs[debug_tab::wifi].enable_switch, LV_STATE_DISABLED);
                 lv_obj_add_state(debug_tabs[debug_tab::mood].enable_switch, LV_STATE_DISABLED);
@@ -184,6 +188,9 @@ static void mesh_enable_event(lv_obj_t *sw, lv_event_t event)
                 toggle_tab(&debug_tabs[debug_tab::chat], false);
                 lv_obj_set_hidden(mood_controls_container, true);
                 lv_obj_set_hidden(chat_container, true);
+                lv_obj_set_hidden(wifi_warning_label, true);
+                lv_obj_set_hidden(mood_warning_label, false);
+                lv_obj_set_hidden(chat_warning_label, false);
             }
 
             if(enabled) {
@@ -209,6 +216,12 @@ static lv_obj_t *tab_mesh_init(debug_tabs_t *tab)
     h = create_container(parent);
     sw = tab->enable_switch = create_switch_with_label(h, "Enabled", tab->enabled);
     lv_obj_set_event_cb(sw, mesh_enable_event);
+
+    mesh_warning_label = lv_label_create(h, NULL);
+    lv_label_set_text(mesh_warning_label, "Wifi must be disabled to activate Mesh");
+    lv_obj_set_hidden(mesh_warning_label, !debug_tabs[debug_tab::wifi].enabled);
+    lv_label_set_long_mode(mesh_warning_label, LV_LABEL_LONG_BREAK);
+    lv_obj_set_style_local_text_font(mesh_warning_label, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, &lv_font_montserrat_12);
 
     if(debug_tabs[debug_tab::wifi].enabled) {
         lv_obj_set_state(sw, LV_STATE_DISABLED);
@@ -257,8 +270,10 @@ static void wifi_enable_event(lv_obj_t *sw, lv_event_t event)
 
             if(enabled) {
                 lv_obj_add_state(debug_tabs[debug_tab::mesh].enable_switch, LV_STATE_DISABLED);
+                lv_obj_set_hidden(mesh_warning_label, false);
             } else {
                 lv_obj_clear_state(debug_tabs[debug_tab::mesh].enable_switch, LV_STATE_DISABLED);
+                lv_obj_set_hidden(mesh_warning_label, true);
             }
 
             if(enabled) {
@@ -289,6 +304,12 @@ static lv_obj_t *tab_wifi_init(debug_tabs_t *tab)
     // Enable switch
     sw = tab->enable_switch = create_switch_with_label(h, "Enabled", tab->enabled);
     lv_obj_set_event_cb(sw, wifi_enable_event);
+
+    wifi_warning_label = lv_label_create(h, NULL);
+    lv_label_set_text(wifi_warning_label, "Mesh must be disabled to activate Wifi");
+    lv_obj_set_hidden(wifi_warning_label, !debug_tabs[debug_tab::mesh].enabled);
+    lv_label_set_long_mode(wifi_warning_label, LV_LABEL_LONG_BREAK);
+    lv_obj_set_style_local_text_font(wifi_warning_label, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, &lv_font_montserrat_12);
 
     if(debug_tabs[debug_tab::mesh].enabled) {
         lv_obj_set_state(sw, LV_STATE_DISABLED);
@@ -548,6 +569,12 @@ static lv_obj_t *tab_mood_init(debug_tabs_t *tab)
     sw = tab->enable_switch = create_switch_with_label(h, "Enabled", tab->enabled);
     lv_obj_set_event_cb(sw, mood_enable_event);
 
+    mood_warning_label = lv_label_create(h, NULL);
+    lv_label_set_text(mood_warning_label, "Mesh must be enabled to activate Mood");
+    lv_obj_set_hidden(mood_warning_label, debug_tabs[debug_tab::mesh].enabled);
+    lv_label_set_long_mode(mood_warning_label, LV_LABEL_LONG_BREAK);
+    lv_obj_set_style_local_text_font(mood_warning_label, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, &lv_font_montserrat_12);
+
     if(!debug_tabs[debug_tab::mesh].enabled) {
         lv_obj_set_state(sw, LV_STATE_DISABLED);
     }
@@ -676,6 +703,12 @@ static lv_obj_t *tab_chat_init(debug_tabs_t *tab)
     // Enable switch
     sw = tab->enable_switch = create_switch_with_label(h, "Enabled", tab->enabled);
     lv_obj_set_event_cb(sw, chat_enable_event);
+
+    chat_warning_label = lv_label_create(h, NULL);
+    lv_label_set_text(chat_warning_label, "Mesh must be enabled to activate Chat");
+    lv_obj_set_hidden(chat_warning_label, debug_tabs[debug_tab::mesh].enabled);
+    lv_label_set_long_mode(chat_warning_label, LV_LABEL_LONG_BREAK);
+    lv_obj_set_style_local_text_font(chat_warning_label, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, &lv_font_montserrat_12);
 
     if(!debug_tabs[debug_tab::mesh].enabled) {
         lv_obj_set_state(sw, LV_STATE_DISABLED);
