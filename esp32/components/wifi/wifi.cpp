@@ -16,7 +16,7 @@
 
 static const char *TAG = "wifi";
 
-#define RAND_CHR (char)(esp_random() % 60 + 0x30)
+#define RAND_CHR (char)((esp_random() % 26) + 0x61)
 
 static esp_event_handler_instance_t event_handler_instance;
 
