@@ -5,7 +5,7 @@ NorthSec 2023 Badge Controller Screen
 
 This device is part of a challenge for NorthSec 2023. The device could be used as an interface for controlling the LEDs on this year's badge over a bluetooth low energy mesh network.
 
-[scene file](sd-card-data/partition-1/User%20Manual/Picture%201.png)
+![controller screen rendering](sd-card-data/partition-1/User%20Manual/Picture%201.png)
 
 ## Hardware
 
