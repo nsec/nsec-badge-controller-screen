@@ -1,54 +1,24 @@
-NorthSec 2021 badge
+NorthSec 2023 Badge Controller Screen
 ===================
-
-Brought to you by the Team badge of NorthSec.
 
 ## Overview
 
-<p align="center">
-  <img src="hw/2021/badges.jpeg" height="320"> <img src="hw/2021/map.png" height="320"><br>
-  <i>Thou art most welcome to North Sectoria.</i>
-</p>
+This device is part of a challenge for NorthSec 2023. The device could be used as an interface for controlling the LEDs on this year's badge over a bluetooth low energy mesh network.
 
-The theme of this edition of the badge is loosely based on the main theme of
-NorthSec 2021 CTF — the medieval kingdom of North Sectoria.  The interface it
-styled as a simple JRPG with a small number of CTF flags hidden in the game
-scene and various interfaces.
-
-If you wish to modify the scene layout, use an SVG editor to modify the
-[scene file](esp32/graphics/rpg.main.scene.svg) and rebuild the firmware.  The
-original scene was developed using Inkscape, so any other SVG editors are not
-officially supported.  The coordinate origin must be set to top-left corner of
-the canvas, so older Inkscape versions may or may not work (not tested.)
+[scene file](sd-card-data/partition-1/User%20Manual/Picture%201.png)
 
 ## Hardware
 
-The NorthSec 2021 badge is based on [ESP32 microcontroller](https://www.espressif.com/en/products/socs/esp32)
-which is used to drive several periphery devices:
-
- - 240px by 240px LCD display
- - WiFi interface
- - [NeoPixel](https://en.wikipedia.org/wiki/Adafruit_Industries#NeoPixel) RGB LEDs
- - six buttons
- - a buzzer
-
-The badge is powered through a micro-USB port or through an external battery
-that can supply between 3.7V and 6V.
-
-If you wish to hack your badge or create a new one based on the hardware. All
-the information [is available here](hw/2021/).
+The device is built around the `ESP32-2432S028R` development board: https://www.aliexpress.com/item/1005004502250619.html?spm=a2g0o.order_list.order_list_main.144.76881802IyLAn1. It has a `ESP32-D0WDQ6` microcontroller with wifi and bluetooth connectivity.
 
 ## Building the firmware
 
 The badge firmware is based on
-[ESP-IDF](https://www.espressif.com/en/products/sdks/esp-idf) v4.3-dev
-framework.  The exact commit is tracked as a submodule in `esp-idf`, and you
-can install it with these commands:
+[ESP-IDF](https://www.espressif.com/en/products/sdks/esp-idf), the exact version used is commited to this repository since it has local changes. In particular `#define ALARM_CBS_NUM` needs to be increased to `100` for BLE mesh connectivity and `FF_USE_LABEL` needs to be enabled for one of the challenge.
 
 ```bash
-git clone https://github.com/nsec/nsec-badge.git
-cd nsec-badge/
-git submodule update --init
+git clone https://github.com/nsec/nsec-badge-controller-screen.git
+cd nsec-badge-controller-screen/
 ./esp-idf/install.sh
 
 # You need to manually install the Pillow package.
@@ -65,8 +35,47 @@ the badge:
 ```bash
 source esp-idf/export.sh
 cd esp32/
-idf.py build flash monitor
+idf.py build
 ```
 
 If for some reason `idf.py` is not able to complete the operation, refer to the
 [ESP-IDF documentation](https://docs.espressif.com/projects/esp-idf/en/stable/esp32/get-started/index.html#step-9-flash-onto-the-device).
+
+## Flashing
+
+Devices used during the competition were using ESP's secure boot v2 to prevent solving challenges by simply reading the flash data. The flash encryption key and the secure boot key are included in this repository.
+
+If you are flashing a brand new, non secure-boot board:
+
+```bash
+idf.py build flash monitor
+```
+
+If you want to update the firmware on a board that has already been flashed with secure boot, for instance one of those we gave to participants during the competition:
+
+```bash
+./esp32/secure_reflash.sh /dev/ttyUSB0
+```
+
+If, for some reason, you want to flash a board with secure boot for the first time (this is the script that was used to prepare the boards before the competition):
+
+```bash
+./esp32/secure_flash.sh /dev/ttyUSB0
+```
+
+## Using the boards
+
+You can use `idf.py menuconfig` to enable the `BADGE_MESH_ADMIN_COMMANDS` option, this adds a menu to the serial console on the badge with additional BLE mesh commands. Equiped with the hardware badge and the controller screen from NorthSec 2023, you can connect to the console on the serial port and use these commands to test the various bluetooth mesh commands.
+
+Some of the BLE mesh commands that were implemented are:
+* Setting the time on the controller screen
+* Setting the controller screen's team name
+* Performing a census of all devices connected to the BLE mesh
+* Querying basic info on a specific mesh device
+* Controlling the LEDs on the hardware badge
+* Sending messages to other controller screens
+* Sending UI popup notifications to other controller screens
+
+There is a `pin.py` script included in this repository which can help solve the initial challenge and put the screen in "debug mode". This enables the main UI on the controller screen, which allows for changing the LED colors and patterns on the hardware badge via the BLE mesh.
+
+The `broadcast_time.py` script can be used to send the current time to all connected devices on the BLE mesh. This was only useful during the competition, as there is no way to save and restore the time after power loss.
