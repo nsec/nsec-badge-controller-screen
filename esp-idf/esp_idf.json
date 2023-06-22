@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/schema#",
+  "$id": "http://dl.espressif.com/dl/schemas/esp_idf",
+  "_comment": "Configuration file for ESP-IDF IDEs.",
+  "_warning": "Use / or \\ when specifying path. Single backslash is not allowed by JSON format.",
+  "gitPath": "/usr/bin/git",
+  "idfToolsPath": "/home/einstein/src/nsec/nsec-badge-controller-screen/esp-idf",
+  "idfSelectedId": "esp-idf-8b83498f4144fd4e12f42a1312184df1",
+  "idfInstalled": {
+    "esp-idf-8b83498f4144fd4e12f42a1312184df1": {
+      "version": "5.0.1",
+      "python": "/home/einstein/src/nsec/nsec-badge-controller-screen/esp-idf/python_env/idf5.0_py3.10_env/bin/python",
+      "path": "/home/einstein/src/nsec/nsec-badge-controller-screen/esp-idf"
+    }
+  }
+}
